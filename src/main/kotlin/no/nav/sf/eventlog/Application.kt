@@ -30,5 +30,7 @@ object Application {
         log.info { "Starting in cluster $cluster" }
         apiServer(8080).start()
         salesforceClient.fetchEventLog(EventType.ApexUnexpectedException)
+        Thread.sleep(5 * 60000)
+        log.info { "Slept 5 min" }
     }
 }
