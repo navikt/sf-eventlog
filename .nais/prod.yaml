@@ -51,5 +51,5 @@ spec:
   #    - secret: template
 
   env:
-    - name: AN_ENV
-      value: "a value in prod"
+    - name: SALESFORCE_API_VERSION
+      value: "v58.0"

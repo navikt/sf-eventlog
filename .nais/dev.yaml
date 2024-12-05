@@ -1,7 +1,7 @@
 apiVersion: "nais.io/v1alpha1"
 kind: "Application"
 metadata:
-  name: template
+  name: sf-eventlog
   namespace: teamcrm
   labels:
     team: teamcrm
@@ -48,8 +48,8 @@ spec:
 #        - application: salesforce
 #          namespace: teamcrm
 #          cluster: dev-external
-#  envFrom:
-#    - secret: template
+  envFrom:
+    - secret: sf-pubsub-preprod
   env:
-    - name: AN_ENV
-      value: "a value in dev"
+    - name: SALESFORCE_API_VERSION
+      value: "v58.0"

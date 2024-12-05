@@ -1,4 +1,4 @@
-package no.nav.template
+package no.nav.sf.eventlog
 
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter

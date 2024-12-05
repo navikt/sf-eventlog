@@ -16,7 +16,7 @@ target/
 out/
 logbody*
 Scratch*
-
+local.env
 
 # misc
 .*.sw?

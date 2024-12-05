@@ -1,4 +1,2 @@
-# sf-mellomvare-template
-Starting point for salesforce mellomvare
-
-Use IDE find all search for "template", to get an idea what needs to be replaced
+# sf-eventlog
+App for å dagligen laste ner valte entiteter fra Salesforce EventLog å logga i secure logs

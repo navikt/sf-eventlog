@@ -1,4 +1,4 @@
-package no.nav.template
+package no.nav.sf.eventlog
 
 import org.junit.jupiter.api.Test
 

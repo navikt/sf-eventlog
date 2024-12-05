@@ -1,4 +1,4 @@
-package no.nav.template
+package no.nav.sf.eventlog
 
 import mu.KotlinLogging
 import org.http4k.core.HttpHandler
@@ -16,6 +16,8 @@ object Application {
 
     val cluster = env(env_NAIS_CLUSTER_NAME)
 
+    val salesforceClient = SalesforceClient()
+
     fun apiServer(port: Int): Http4kServer = api().asServer(ApacheServer(port))
 
     fun api(): HttpHandler = routes(
@@ -27,5 +29,6 @@ object Application {
     fun start() {
         log.info { "Starting in cluster $cluster" }
         apiServer(8080).start()
+        salesforceClient.fetchEventLog(EventType.ApexUnexpectedException)
     }
 }
