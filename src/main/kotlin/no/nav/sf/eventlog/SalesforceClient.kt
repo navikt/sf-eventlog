@@ -33,7 +33,7 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                 mapOf(
                     "EVENT_TYPE" to it["EVENT_TYPE"].asString,
                     "TIMESTAMP" to it["TIMESTAMP"].asString,
-                    "TIMESTAMP" to it["TIMESTAMP_DERIVED"].asString,
+                    "TIMESTAMP_DERIVED" to it["TIMESTAMP_DERIVED"].asString,
                     "REQUEST_ID" to it["REQUEST_ID"].asString,
                     "ORGANIZATION_ID" to it["ORGANIZATION_ID"].asString,
                     "USER_ID" to it["USER_ID"].asString,
