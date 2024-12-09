@@ -1,27 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<!--<configuration debug="true">
-
-    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder>
-            <pattern>%green(%d{HH:mm:ss}){faint} %cyan([%-5.5t]){faint} %cyan(%0.-5p) %yellow(%-40.40logger{39}){cyan}: %m%n</pattern>
-        </encoder>
-    </appender>
-
-    <root level="DEBUG">
-        <appender-ref ref="CONSOLE"/>
-    </root>
-
-    <logger name="no.nav" level="INFO"/>
-    <logger name="org.apache.kafka" level="INFO"/>
-    <logger name="o.a.k.clients" level="INFO"/>
-    <logger name="io.netty" level="INFO"/>
-
-</configuration>-->
-
 <configuration>
     <appender name="appLog" class="ch.qos.logback.core.ConsoleAppender">
         <encoder class="no.nav.sf.eventlog.CustomLogstashEncoder"/>
-<!--        <encoder class="net.logstash.logback.encoder.LogstashEncoder"/>-->
         <filter class="ch.qos.logback.core.filter.EvaluatorFilter">
             <evaluator class="ch.qos.logback.classic.boolex.OnMarkerEvaluator">
                 <marker>SECURE_LOG</marker>
@@ -42,7 +22,6 @@
             <maxFileSize>128MB</maxFileSize>
         </triggeringPolicy>
         <encoder class="no.nav.sf.eventlog.CustomLogstashEncoder"/>
-<!--        <encoder class="net.logstash.logback.encoder.LogstashEncoder"/>-->
         <filter class="ch.qos.logback.core.filter.EvaluatorFilter">
             <evaluator class="ch.qos.logback.classic.boolex.OnMarkerEvaluator">
                 <marker>SECURE_LOG</marker>

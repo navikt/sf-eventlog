@@ -22,6 +22,8 @@ class CustomLogstashEncoder : LogstashEncoder() {
             jsonObject.addProperty("@timestamp", timestampDerived)
         }
 
+        jsonObject.addProperty("message", "Mod.v01 " + jsonObject["message"].toString())
+
         // Return the modified JSON as a byte array
         return (jsonObject.toString() + "\n").toByteArray(StandardCharsets.UTF_8)
     }
