@@ -13,6 +13,9 @@ import org.http4k.core.Method
 import org.http4k.core.Request
 import java.io.File
 import java.io.StringReader
+import java.net.URLEncoder
+import java.time.LocalDate
+import kotlin.math.log
 
 class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = DefaultAccessTokenHandler()) {
     private val log = KotlinLogging.logger { }
@@ -22,36 +25,42 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
     private val client = ApacheClient()
 
     fun fetchEventLog(eventType: EventType) {
-        val logFiles = fetchLogFiles(eventType)
+        val logFiles = fetchLogFiles(eventType, LocalDate.parse("2024-12-03"))
 
         val first = logFiles.first()
         val capturedEvents = fetchLogFileContentAsJson(first)
-        log.info { "Will log ${capturedEvents.size} events to secure logs" }
 
-        capturedEvents.forEach {
-            withLoggingContext(
-                mapOf(
-                    "EVENT_TYPE" to it["EVENT_TYPE"].asString,
-                    "TIMESTAMP" to it["TIMESTAMP"].asString,
-                    "TIMESTAMP_DERIVED" to it["TIMESTAMP_DERIVED"].asString,
-                    "REQUEST_ID" to it["REQUEST_ID"].asString,
-                    "ORGANIZATION_ID" to it["ORGANIZATION_ID"].asString,
-                    "USER_ID" to it["USER_ID"].asString,
-                    "EXCEPTION_TYPE" to it["EXCEPTION_TYPE"].asString,
-                    "STACK_TRACE" to it["STACK_TRACE"].asString,
-                    "EXCEPTION_CATEGORY" to it["EXCEPTION_CATEGORY"].asString,
-                    "USER_ID_DERIVED" to it["USER_ID_DERIVED"].asString,
-                )
-            ) {
-                // log.info { it["EXCEPTION_MESSAGE"].asString }
-                log.error(SECURE, it["EXCEPTION_MESSAGE"].asString)
+        log.info { "Will log ${capturedEvents.size} events" }
+        capturedEvents.forEachIndexed { index, event ->
+            if (index < 3) {
+                val logMessage = if (eventType.messageField.isNotBlank()) {
+                    event[eventType.messageField]?.asString ?: "N/A"
+                } else {
+                    // If no message field defined locally we want to see full event object to examine model
+                    if (Application.cluster == "local") event.toString() else "N/A"
+                }
+
+                val nonSensitiveContext = eventType.generateLoggingContext(eventData = event, excludeSensitive = true)
+                val fullContext = eventType.generateLoggingContext(eventData = event, excludeSensitive = false)
+
+                withLoggingContext(nonSensitiveContext) {
+                    log.error(logMessage)
+                }
+                withLoggingContext(fullContext) {
+                    log.error(SECURE, logMessage)
+                }
             }
         }
     }
 
-    private fun fetchLogFiles(eventType: EventType): List<String> {
-        val soqlQuery = "SELECT Id, EventType, LogFile, LogDate FROM EventLogFile WHERE EventType='${eventType.name}'"
-        val encodedQuery = soqlQuery.replace(" ", "+") // URL-encode the query
+    /***
+     * fetchLogFiles - fetches FileLogs from Salesforce that each contains the event logs for evenType for one day
+     *  - logDate - which date to fetch logfile for, if null that means fetch all (typically last 30 days)
+     */
+    private fun fetchLogFiles(eventType: EventType, logDate: LocalDate? = null): List<String> {
+        val soqlQuery = "SELECT Id, EventType, LogFile, LogDate FROM EventLogFile WHERE EventType='${eventType.name}'" +
+            (logDate?.let { dateRestrictionExtention(it) } ?: "")
+        val encodedQuery = URLEncoder.encode(soqlQuery, "UTF-8")
 
         var done = false
         var nextRecordsUrl = "/services/data/$apiVersion/query?q=$encodedQuery"
@@ -66,7 +75,12 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
             if (response.status.successful) {
                 val obj = JsonParser.parseString(response.bodyString()).asJsonObject
                 val recordEntries = obj["records"].asJsonArray
-                result.addAll(recordEntries.map { it.asJsonObject["LogFile"].asString })
+                result.addAll(
+                    recordEntries.map {
+                        log.info { "Logfile from date " + LocalDate.parse(it.asJsonObject["LogDate"].asString.substring(0, 10)) }
+                        it.asJsonObject["LogFile"].asString
+                    }
+                )
                 val totalSize = obj["totalSize"].asInt
                 log.info { "Fetched ${result.count()} of $totalSize log files for ${eventType.name}" }
                 done = obj["done"].asBoolean
@@ -79,6 +93,9 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
 
         return result
     }
+
+    private fun dateRestrictionExtention(date: LocalDate) =
+        " AND LogDate >= ${date}T00:00:00Z AND LogDate < ${date.plusDays(1)}T00:00:00Z"
 
     private fun fetchLogFileContentAsJson(logFileUrl: String): List<JsonObject> {
         val fullLogFileUrl = "${accessTokenHandler.instanceUrl}$logFileUrl"
@@ -112,7 +129,7 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
 
             // For each column in the record, add the key-value pair to the JsonObject
             csvRecord.toMap().forEach { (key, value) ->
-                jsonObject.addProperty(key, if (value.isNullOrBlank()) null else value)
+                jsonObject.addProperty(key, if (value.isNullOrBlank()) null else value.trim('"'))
             }
 
             result.add(jsonObject)

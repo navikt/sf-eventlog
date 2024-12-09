@@ -20,7 +20,8 @@
 
 <configuration>
     <appender name="appLog" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder class="net.logstash.logback.encoder.LogstashEncoder"/>
+        <encoder class="no.nav.sf.eventlog.CustomLogstashEncoder"/>
+<!--        <encoder class="net.logstash.logback.encoder.LogstashEncoder"/>-->
         <filter class="ch.qos.logback.core.filter.EvaluatorFilter">
             <evaluator class="ch.qos.logback.classic.boolex.OnMarkerEvaluator">
                 <marker>SECURE_LOG</marker>
@@ -31,16 +32,17 @@
     </appender>
 
     <appender name="secureLog" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>/Users/bjornhagglund/Repos/sf-eventlog/Scratch_securelog</file>
+        <file>Scratch_securelog</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
-            <fileNamePattern>/Users/bjornhagglund/Repos/sf-eventlog/Scratch_securelog.%i</fileNamePattern>
+            <fileNamePattern>Scratch_securelog.%i</fileNamePattern>
             <minIndex>1</minIndex>
             <maxIndex>1</maxIndex>
         </rollingPolicy>
         <triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
             <maxFileSize>128MB</maxFileSize>
         </triggeringPolicy>
-        <encoder class="net.logstash.logback.encoder.LogstashEncoder"/>
+        <encoder class="no.nav.sf.eventlog.CustomLogstashEncoder"/>
+<!--        <encoder class="net.logstash.logback.encoder.LogstashEncoder"/>-->
         <filter class="ch.qos.logback.core.filter.EvaluatorFilter">
             <evaluator class="ch.qos.logback.classic.boolex.OnMarkerEvaluator">
                 <marker>SECURE_LOG</marker>
