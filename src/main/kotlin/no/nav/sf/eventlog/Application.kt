@@ -34,7 +34,7 @@ class Application {
         "/internal/isReady" bind Method.GET to { Response(OK) },
         "/internal/metrics" bind Method.GET to Metrics.metricsHttpHandler,
         "/internal/fetchAndLog" bind Method.GET to fetchAndLogHandler,
-        "/internal/test" bind Method.GET to { if (cluster != "local") database.create() ; log.info { "Test path is called" }; Response(OK) },
+        "/internal/test" bind Method.GET to { log.info { "Test path is called" }; Response(OK) },
         "/internal/gui" bind Method.GET to static(ResourceLoader.Classpath("gui")),
         "/internal/metadata" bind Method.GET to metaDataHandler
     )
@@ -42,6 +42,7 @@ class Application {
     fun start() {
         log.info { "Starting in cluster $cluster" }
         apiServer(8080).start()
+        if (cluster != "local") database.create()
         // salesforceClient.fetchLogFiles(EventType.ApexUnexpectedException)
     }
 
