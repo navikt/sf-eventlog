@@ -1,3 +1,4 @@
 package no.nav.sf.eventlog
 
-fun main() = Application.start()
+val application = Application()
+fun main() = application.start()

@@ -1,8 +1,7 @@
 package no.nav.sf.eventlog.db
 
-import no.nav.sf.eventlog.Application
-import no.nav.sf.eventlog.Application.gson
 import no.nav.sf.eventlog.EventType
+import no.nav.sf.eventlog.application
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.javatime.CurrentDateTime
@@ -91,7 +90,7 @@ fun getMetaData(): String {
     // Fetch the mock data
     // if (Application.cluster == "local") retrieveLogSyncStatusesAsMapMock() else retrieveLogSyncStatusesAsMap()
     val logSyncStatuses = retrieveLogSyncStatusesAsMapMock() // Map<EventType, List<LogSyncStatus>>
-    val logFileDataMap = Application.salesforceClient.logFileDataMap // Map<EventType, List<LocalDate>> //Application.salesforceClient.getLogFileDatesMock()
+    val logFileDataMap = application.salesforceClient.logFileDataMap // Map<EventType, List<LocalDate>> //Application.salesforceClient.getLogFileDatesMock()
 
     // Get today's date and calculate the last 30 days
     val now = LocalDateTime.now()
@@ -132,7 +131,7 @@ fun getMetaData(): String {
     }
 
     // Convert the result map to JSON using Gson
-    return gson.toJson(result)
+    return application.gson.toJson(result)
 }
 
 fun createNoLogfileStatus(date: LocalDate, eventType: EventType) =

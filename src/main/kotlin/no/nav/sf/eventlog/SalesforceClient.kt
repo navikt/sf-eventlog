@@ -75,7 +75,7 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                         event[eventType.messageField]?.asString ?: "N/A"
                     } else {
                         // Locally - if no message field defined we want to see full event object to examine model
-                        if (Application.cluster == "local") event.toString() else "N/A"
+                        if (application.cluster == "local") event.toString() else "N/A"
                     }
 
                     val nonSensitiveContext =

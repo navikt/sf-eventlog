@@ -16,7 +16,7 @@ import org.http4k.server.Http4kServer
 import org.http4k.server.asServer
 import java.time.LocalDate
 
-object Application {
+class Application {
     private val log = KotlinLogging.logger { }
 
     val salesforceClient = SalesforceClient()
