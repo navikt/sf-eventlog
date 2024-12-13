@@ -21,7 +21,7 @@ class Application {
 
     val salesforceClient = SalesforceClient()
 
-    private val database = PostgresDatabase()
+    val database = PostgresDatabase()
 
     val gson = configureGson()
 
@@ -42,7 +42,7 @@ class Application {
     fun start() {
         log.info { "Starting in cluster $cluster" }
         apiServer(8080).start()
-        if (cluster != "local") database.create()
+        // if (cluster != "local") database.create()
         // salesforceClient.fetchLogFiles(EventType.ApexUnexpectedException)
     }
 

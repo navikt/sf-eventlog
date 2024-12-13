@@ -88,8 +88,8 @@ fun retrieveLogSyncStatusesAsMapMock(): Map<EventType, List<LogSyncStatus>> {
 
 fun getMetaData(): String {
     // Fetch the mock data
-    // if (Application.cluster == "local") retrieveLogSyncStatusesAsMapMock() else retrieveLogSyncStatusesAsMap()
-    val logSyncStatuses = retrieveLogSyncStatusesAsMapMock() // Map<EventType, List<LogSyncStatus>>
+    val logSyncStatuses = if (application.cluster == "local") retrieveLogSyncStatusesAsMapMock() else application.database.retrieveLogSyncStatusesAsMap()
+    // retrieveLogSyncStatusesAsMap() // Map<EventType, List<LogSyncStatus>>
     val logFileDataMap = application.salesforceClient.logFileDataMap // Map<EventType, List<LocalDate>> //Application.salesforceClient.getLogFileDatesMock()
 
     // Get today's date and calculate the last 30 days
