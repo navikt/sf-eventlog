@@ -48,6 +48,15 @@ dependencies {
 
     implementation 'org.apache.commons:commons-csv:1.10.0'
 
+    implementation "org.postgresql:postgresql:42.3.9"
+
+    implementation 'org.jetbrains.exposed:exposed-core:0.46.0'
+    implementation 'org.jetbrains.exposed:exposed-dao:0.46.0'
+    implementation 'org.jetbrains.exposed:exposed-jdbc:0.46.0'
+    implementation 'org.jetbrains.exposed:exposed-java-time:0.46.0'
+
+    implementation "com.zaxxer:HikariCP:3.4.1"
+
     implementation "net.minidev:json-smart:2.4.9" //Desired transient json-smart to token-validation above
     implementation "com.nimbusds:nimbus-jose-jwt:9.37.2"
     implementation "org.apache.commons:commons-compress:1.26.0" //transient http4k-apache

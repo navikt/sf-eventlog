@@ -31,6 +31,12 @@ spec:
     requests:
       cpu: 10m
       memory: 512Mi
+  gcp:
+    sqlInstances:
+      - type: POSTGRES_16
+        tier: db-f1-micro
+        databases:
+          - name: sf-eventlog-prod
   #  ingresses:
   #    - "https://sf-mellomvare.template.intern.nav.no"
   #  azure:
@@ -55,3 +61,5 @@ spec:
   env:
     - name: SALESFORCE_API_VERSION
       value: "v58.0"
+    - name: CONTEXT
+      value: "PROD"

@@ -23,6 +23,7 @@ const val env_NAIS_CLUSTER_NAME = "NAIS_CLUSTER_NAME"
 const val env_NAIS_APP_NAME = "NAIS_APP_NAME"
 
 const val config_SALESFORCE_API_VERSION = "SALESFORCE_API_VERSION"
+const val config_CONTEXT = "CONTEXT"
 
 /**
  * Shortcut for fetching environment variables

@@ -2,14 +2,14 @@ package no.nav.sf.eventlog
 
 import com.google.gson.JsonObject
 
-/**
- * See CustomLogstashEncoder
- * If this field is found in rendered log json it will replace @timestamp.
- * @timestamp will in that case be placed in another field
- */
-const val FIELD_TO_REPLACE_TIMESTAMP = "TIMESTAMP_DERIVED"
-
-const val FIELD_TO_STORE_EVENT_LOG_TIMESTAMP_ON_REPLACEMENT = "timestampSfEventLog"
+// /**
+// * See CustomLogstashEncoder
+// * If this field is found in rendered log json it will replace @timestamp.
+// * @timestamp will in that case be placed in another field
+// */
+// const val FIELD_TO_REPLACE_TIMESTAMP = "TIMESTAMP_DERIVED"
+//
+// const val FIELD_TO_STORE_EVENT_LOG_TIMESTAMP_ON_REPLACEMENT = "timestampSfEventLog"
 
 enum class EventType(
     val messageField: String,
