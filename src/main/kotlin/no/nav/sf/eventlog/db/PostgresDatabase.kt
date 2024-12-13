@@ -31,18 +31,20 @@ class PostgresDatabase {
     private val dbUsername = env("$NAIS_DB_PREFIX${context}_USERNAME")
     private val dbPassword = env("$NAIS_DB_PREFIX${context}_PASSWORD")
 
+    private val dbJdbcUrl = env("$NAIS_DB_PREFIX${context}_JDBC_URL")
+
     // Note: exposed Database connect prepares for connections but does not actually open connections
     // That is handled via transaction {} ensuring connections are opened and closed properly
     val database = Database.connect(HikariDataSource(hikariConfig()))
 
     private fun hikariConfig(): HikariConfig = HikariConfig().apply {
-        jdbcUrl = "jdbc:postgresql://localhost:$dbPort/$dbName" // This is where the cloud db proxy is located in the pod
+        jdbcUrl = dbJdbcUrl // "jdbc:postgresql://localhost:$dbPort/$dbName" // This is where the cloud db proxy is located in the pod
         driverClassName = "org.postgresql.Driver"
-        addDataSourceProperty("serverName", dbHost)
-        addDataSourceProperty("port", dbPort)
-        addDataSourceProperty("databaseName", dbName)
-        addDataSourceProperty("user", dbUsername)
-        addDataSourceProperty("password", dbPassword)
+//        addDataSourceProperty("serverName", dbHost)
+//        addDataSourceProperty("port", dbPort)
+//        addDataSourceProperty("databaseName", dbName)
+//        addDataSourceProperty("user", dbUsername)
+//        addDataSourceProperty("password", dbPassword)
         minimumIdle = 1
         maxLifetime = 26000
         maximumPoolSize = 10
