@@ -44,7 +44,7 @@ class PostgresDatabase {
         if (logSyncStatusCache.containsKey(EventType.valueOf(logSyncStatus.eventType))) {
             logSyncStatusCache[EventType.valueOf(logSyncStatus.eventType)] = logSyncStatusCache[EventType.valueOf(logSyncStatus.eventType)]!!.filter { it.syncDate != logSyncStatus.syncDate }.toMutableList()
         } else {
-            logSyncStatusCache[EventType.valueOf(logSyncStatus.eventType)]  = mutableListOf()
+            logSyncStatusCache[EventType.valueOf(logSyncStatus.eventType)] = mutableListOf()
         }
         logSyncStatusCache[EventType.valueOf(logSyncStatus.eventType)]!!.add(logSyncStatus)
     }

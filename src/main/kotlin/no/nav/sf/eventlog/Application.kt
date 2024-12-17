@@ -55,9 +55,10 @@ class Application {
         if (eventTypeArg == "ALL") {
             log.info { "Will fetch event logs for ALL event types (${EventType.values().joinToString(",") { e -> e.name }}) for $date" }
             val result = EventType.values().map { eventType ->
-                if (application.database.logSyncStatusMap[eventType]?.
-                    any { syncStatus -> syncStatus.syncDate == date && syncStatus.status == "SUCCESS" } == true) {
-                    log.info { "ALL: Skipping performing fetch and log on $eventType for $date since there is a sync registered as performed successfully already"}
+                if (application.database.logSyncStatusMap[eventType]
+                    ?.any { syncStatus -> syncStatus.syncDate == date && syncStatus.status == "SUCCESS" } == true
+                ) {
+                    log.info { "ALL: Skipping performing fetch and log on $eventType for $date since there is a sync registered as performed successfully already" }
                     application.database.logSyncStatusMap[eventType]!!.first { syncStatus -> syncStatus.syncDate == date && syncStatus.status == "SUCCESS" }
                 } else {
                     salesforceClient.fetchAndLogEventLogs(eventType, date)
@@ -67,13 +68,14 @@ class Application {
         } else {
             val eventType = EventType.valueOf(eventTypeArg)
             val result =
-            if (application.database.logSyncStatusMap[eventType]?.
-                any { syncStatus -> syncStatus.syncDate == date && syncStatus.status == "SUCCESS" } == true) {
-                log.info { "Skipping performing fetch and log on $eventType for $date since there is a sync registered as performed successfully already" }
-                application.database.logSyncStatusMap[eventType]!!.first { syncStatus -> syncStatus.syncDate == date && syncStatus.status == "SUCCESS" }
-            } else {
-                salesforceClient.fetchAndLogEventLogs(eventType, date)
-            }
+                if (application.database.logSyncStatusMap[eventType]
+                    ?.any { syncStatus -> syncStatus.syncDate == date && syncStatus.status == "SUCCESS" } == true
+                ) {
+                    log.info { "Skipping performing fetch and log on $eventType for $date since there is a sync registered as performed successfully already" }
+                    application.database.logSyncStatusMap[eventType]!!.first { syncStatus -> syncStatus.syncDate == date && syncStatus.status == "SUCCESS" }
+                } else {
+                    salesforceClient.fetchAndLogEventLogs(eventType, date)
+                }
             Response(OK).body(gson.toJson(result))
         }
     }

@@ -83,10 +83,10 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                     val fullContext = eventType.generateLoggingContext(eventData = event, excludeSensitive = false)
 
                     withLoggingContext(nonSensitiveContext) {
-                        //log.error(logMessage)
+                        // log.error(logMessage)
                     }
                     withLoggingContext(fullContext) {
-                        //log.error(SECURE, logMessage)
+                        // log.error(SECURE, logMessage)
                     }
                 }
                 val successState = createSuccessStatus(date, eventType, "Would have Logged ${capturedEvents.size} events of type ${eventType.name} for $date")
