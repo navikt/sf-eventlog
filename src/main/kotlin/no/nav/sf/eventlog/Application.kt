@@ -49,15 +49,31 @@ class Application {
     private val fetchAndLogHandler: HttpHandler = {
         val date = LocalDate.parse(it.query("date")!!)
         val eventTypeArg = it.query("eventType")!!
+        // TODO Verify we do not perform fetch and log on success states:
+        val logSyncStatuses = application.database.logSyncStatusMap
+
         if (eventTypeArg == "ALL") {
             log.info { "Will fetch event logs for ALL event types (${EventType.values().joinToString(",") { e -> e.name }}) for $date" }
             val result = EventType.values().map { eventType ->
-                salesforceClient.fetchAndLogEventLogs(eventType, date)
+                if (application.database.logSyncStatusMap[eventType]?.
+                    any { syncStatus -> syncStatus.syncDate == date && syncStatus.status == "SUCCESS" } == true) {
+                    log.info { "ALL: Skipping performing fetch and log on $eventType for $date since there is a sync registered as performed successfully already"}
+                    application.database.logSyncStatusMap[eventType]!!.first { syncStatus -> syncStatus.syncDate == date && syncStatus.status == "SUCCESS" }
+                } else {
+                    salesforceClient.fetchAndLogEventLogs(eventType, date)
+                }
             }
             Response(OK).body(gson.toJson(result))
         } else {
             val eventType = EventType.valueOf(eventTypeArg)
-            val result = salesforceClient.fetchAndLogEventLogs(eventType, date)
+            val result =
+            if (application.database.logSyncStatusMap[eventType]?.
+                any { syncStatus -> syncStatus.syncDate == date && syncStatus.status == "SUCCESS" } == true) {
+                log.info { "Skipping performing fetch and log on $eventType for $date since there is a sync registered as performed successfully already" }
+                application.database.logSyncStatusMap[eventType]!!.first { syncStatus -> syncStatus.syncDate == date && syncStatus.status == "SUCCESS" }
+            } else {
+                salesforceClient.fetchAndLogEventLogs(eventType, date)
+            }
             Response(OK).body(gson.toJson(result))
         }
     }

@@ -69,7 +69,7 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                 // TODO make sure there is not a successful run stored in db.
                 val capturedEvents = fetchLogFileContentAsJson(it.file)
 
-                log.info { "Will log ${capturedEvents.size} events" }
+                log.info { "Would have log ${capturedEvents.size} events" }
                 capturedEvents.forEach { event ->
                     val logMessage = if (eventType.messageField.isNotBlank()) {
                         event[eventType.messageField]?.asString ?: "N/A"
@@ -83,16 +83,22 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                     val fullContext = eventType.generateLoggingContext(eventData = event, excludeSensitive = false)
 
                     withLoggingContext(nonSensitiveContext) {
-                        log.error(logMessage)
+                        //log.error(logMessage)
                     }
                     withLoggingContext(fullContext) {
-                        log.error(SECURE, logMessage)
+                        //log.error(SECURE, logMessage)
                     }
                 }
-                return createSuccessStatus(date, eventType, "Logged ${capturedEvents.size} events of type ${eventType.name} for $date")
+                val successState = createSuccessStatus(date, eventType, "Would have Logged ${capturedEvents.size} events of type ${eventType.name} for $date")
+                application.database.upsertLogSyncStatus(successState)
+                application.database.updateCache(successState)
+                return successState
             }
         } catch (e: Exception) {
-            return createFailureStatus(date, eventType, e.javaClass.name + ":" + e.message)
+            val failureState = createFailureStatus(date, eventType, e.javaClass.name + ":" + e.message)
+            application.database.upsertLogSyncStatus(failureState)
+            application.database.updateCache(failureState)
+            return failureState
         }
     }
 

@@ -24,6 +24,31 @@ class PostgresDatabase {
 
     private val context = env(config_CONTEXT)
 
+    private var logSyncStatusCacheLastUpdated: LocalDate = LocalDate.MIN
+
+    @Volatile
+    private var logSyncStatusCache: MutableMap<EventType, MutableList<LogSyncStatus>> = mutableMapOf()
+
+    val logSyncStatusMap: MutableMap<EventType, MutableList<LogSyncStatus>> get() {
+        if (logSyncStatusCacheLastUpdated == LocalDate.now()) {
+            log.info { "Using log sync status cache" }
+        } else {
+            log.info { "Cache invalid : Fetching log sync statuses" }
+            logSyncStatusCache = retrieveLogSyncStatusesAsMap()
+            logSyncStatusCacheLastUpdated = LocalDate.now()
+        }
+        return logSyncStatusCache
+    }
+
+    fun updateCache(logSyncStatus: LogSyncStatus) {
+        if (logSyncStatusCache.containsKey(EventType.valueOf(logSyncStatus.eventType))) {
+            logSyncStatusCache[EventType.valueOf(logSyncStatus.eventType)] = logSyncStatusCache[EventType.valueOf(logSyncStatus.eventType)]!!.filter { it.syncDate != logSyncStatus.syncDate }.toMutableList()
+        } else {
+            logSyncStatusCache[EventType.valueOf(logSyncStatus.eventType)]  = mutableListOf()
+        }
+        logSyncStatusCache[EventType.valueOf(logSyncStatus.eventType)]!!.add(logSyncStatus)
+    }
+
     private val dbUrl = env("$NAIS_DB_PREFIX${context}_URL")
     private val dbHost = env("$NAIS_DB_PREFIX${context}_HOST")
     private val dbPort = env("$NAIS_DB_PREFIX${context}_PORT")
@@ -69,6 +94,9 @@ class PostgresDatabase {
         }
     }
 
+    fun upsertLogSyncStatus(logSyncStatus: LogSyncStatus): LogSyncStatus? {
+        return upsertLogSyncStatus(logSyncStatus.syncDate, logSyncStatus.eventType, logSyncStatus.status, logSyncStatus.message)
+    }
     // Upsert function for LogSyncStatus
     fun upsertLogSyncStatus(
         syncDate: LocalDate,
@@ -98,14 +126,14 @@ class PostgresDatabase {
     }
 
     // Function to retrieve all rows and structure as a Map<EventType, List<LogSyncStatus>>
-    fun retrieveLogSyncStatusesAsMap(): Map<EventType, List<LogSyncStatus>> {
+    private fun retrieveLogSyncStatusesAsMap(): MutableMap<EventType, MutableList<LogSyncStatus>> {
         return transaction {
             LogSyncStatusTable.selectAll()
                 .map { it.toLogSyncStatus() }
                 .groupBy { EventType.valueOf(it.eventType) }
                 .mapValues { entry ->
-                    entry.value.sortedByDescending { it.syncDate }
-                }
+                    entry.value.sortedByDescending { it.syncDate }.toMutableList()
+                }.toMutableMap()
         }
     }
 }
