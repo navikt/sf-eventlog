@@ -19,7 +19,7 @@ import java.time.LocalDateTime
 
 const val NAIS_DB_PREFIX = "NAIS_DATABASE_SF_EVENTLOG_SF_EVENTLOG_"
 
-class PostgresDatabase {
+object PostgresDatabase {
     private val log = KotlinLogging.logger { }
 
     private val context = env(config_CONTEXT)

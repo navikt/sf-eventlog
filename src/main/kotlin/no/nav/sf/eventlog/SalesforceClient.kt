@@ -5,6 +5,7 @@ import com.google.gson.JsonParser
 import mu.KotlinLogging
 import mu.withLoggingContext
 import no.nav.sf.eventlog.db.LogSyncStatus
+import no.nav.sf.eventlog.db.PostgresDatabase
 import no.nav.sf.eventlog.db.createFailureStatus
 import no.nav.sf.eventlog.db.createNoLogfileStatus
 import no.nav.sf.eventlog.db.createSuccessStatus
@@ -69,13 +70,13 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                 // TODO make sure there is not a successful run stored in db.
                 val capturedEvents = fetchLogFileContentAsJson(it.file)
 
-                log.info { "Would have log ${capturedEvents.size} events" }
+                log.info { "Will log ${capturedEvents.size} events of type $eventType for $date" }
                 capturedEvents.forEach { event ->
                     val logMessage = if (eventType.messageField.isNotBlank()) {
                         event[eventType.messageField]?.asString ?: "N/A"
                     } else {
                         // Locally - if no message field defined we want to see full event object to examine model
-                        if (application.cluster == "local") event.toString() else "N/A"
+                        if (local) event.toString() else "N/A"
                     }
 
                     val nonSensitiveContext =
@@ -83,21 +84,25 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                     val fullContext = eventType.generateLoggingContext(eventData = event, excludeSensitive = false)
 
                     withLoggingContext(nonSensitiveContext) {
-                        // log.error(logMessage)
+                        log.error(logMessage)
                     }
                     withLoggingContext(fullContext) {
-                        // log.error(SECURE, logMessage)
+                        log.error(SECURE, logMessage)
                     }
                 }
-                val successState = createSuccessStatus(date, eventType, "Would have Logged ${capturedEvents.size} events of type ${eventType.name} for $date")
-                application.database.upsertLogSyncStatus(successState)
-                application.database.updateCache(successState)
+                val successState = createSuccessStatus(date, eventType, "Logged ${capturedEvents.size} events of type ${eventType.name} for $date")
+                if (!local) {
+                    PostgresDatabase.upsertLogSyncStatus(successState)
+                    PostgresDatabase.updateCache(successState)
+                }
                 return successState
             }
         } catch (e: Exception) {
             val failureState = createFailureStatus(date, eventType, e.javaClass.name + ":" + e.message)
-            application.database.upsertLogSyncStatus(failureState)
-            application.database.updateCache(failureState)
+            if (!local) {
+                PostgresDatabase.upsertLogSyncStatus(failureState)
+                PostgresDatabase.updateCache(failureState)
+            }
             return failureState
         }
     }

@@ -2,6 +2,7 @@ package no.nav.sf.eventlog.db
 
 import no.nav.sf.eventlog.EventType
 import no.nav.sf.eventlog.application
+import no.nav.sf.eventlog.local
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.javatime.CurrentDateTime
@@ -88,7 +89,7 @@ fun retrieveLogSyncStatusesAsMapMock(): Map<EventType, List<LogSyncStatus>> {
 
 fun getMetaData(): String {
     // Fetch the mock data
-    val logSyncStatuses = if (application.cluster == "local") retrieveLogSyncStatusesAsMapMock() else application.database.logSyncStatusMap
+    val logSyncStatuses = if (local) retrieveLogSyncStatusesAsMapMock() else PostgresDatabase.logSyncStatusMap
     // retrieveLogSyncStatusesAsMap() // Map<EventType, List<LogSyncStatus>>
     val logFileDataMap = application.salesforceClient.logFileDataMap // Map<EventType, List<LocalDate>> //Application.salesforceClient.getLogFileDatesMock()
 

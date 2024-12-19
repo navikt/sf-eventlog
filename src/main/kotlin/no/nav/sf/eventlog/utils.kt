@@ -54,3 +54,5 @@ fun configureGson(): Gson {
         .setPrettyPrinting()
         .create()
 }
+
+val local = env(env_NAIS_CLUSTER_NAME) == "local"

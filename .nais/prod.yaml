@@ -55,9 +55,8 @@ spec:
   #        - application: salesforce
   #          namespace: teamcrm
   #          cluster: prod-external
-  #  envFrom:
-  #    - secret: template
-
+    envFrom:
+      - secret: sf-eventlog
   env:
     - name: SALESFORCE_API_VERSION
       value: "v58.0"
