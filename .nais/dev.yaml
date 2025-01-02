@@ -50,12 +50,10 @@ spec:
 #          - NAVident
 #    sidecar:
 #      enabled: false
-#  accessPolicy:
-#    inbound:
-#      rules:
-#        - application: salesforce
-#          namespace: teamcrm
-#          cluster: dev-external
+  accessPolicy:
+    inbound:
+      rules:
+        - application: curl-job-eventlog
   envFrom:
     - secret: sf-pubsub-preprod
   env:

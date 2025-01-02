@@ -1,0 +1,23 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: curl-job-eventlog
+  namespace: teamcrm
+  labels:
+    team: teamcrm
+spec:
+  schedule: "* * * * *"  # This will run the CronJob every minute
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: curl-job-eventlog
+              image: cgr.dev/chainguard/curl:latest
+              command:
+                - curl
+                - -I
+                - https://sf-eventlog.intern.dev.nav.no/internal/test
+              securityContext:
+                allowPrivilegeEscalation: false
+          restartPolicy: Never

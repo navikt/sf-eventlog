@@ -1,0 +1,21 @@
+apiVersion: nais.io/v1
+kind: Naisjob
+metadata:
+  name: curl-job-eventlog
+  namespace: teamcrm
+  labels:
+    team: teamcrm
+spec:
+  schedule: "* * * * *"  # This will run the job every minute
+  image: cgr.dev/chainguard/curl:latest
+  accessPolicy:
+    outbound:
+      rules:
+      - application: sf-eventlog
+#      external:
+#      - host: sf-eventlog.intern.dev.nav.no
+  command:
+    - curl
+    - -I
+    - http://sf-eventlog/internal/test
+  restartPolicy: Never

@@ -41,5 +41,6 @@ enum class EventType(
 }
 
 fun EventType.generateLoggingContext(eventData: JsonObject, excludeSensitive: Boolean): Map<String, String> {
-    return (this.insensitiveFields + if (excludeSensitive) listOf() else sensitiveFields).associateWith { eventData[it].asString ?: "N/A" }
+    return (this.insensitiveFields + if (excludeSensitive) listOf() else sensitiveFields)
+        .associateWith { eventData[it].asString ?: "N/A" }
 }

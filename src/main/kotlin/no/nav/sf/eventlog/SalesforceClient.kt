@@ -67,7 +67,7 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                 return createNoLogfileStatus(date, eventType)
             }
             logFilesForDate.first().let {
-                // TODO make sure there is not a successful run stored in db.
+                // TODO make sure there is not a successful run stored in db. (Is doing before this function)
                 val capturedEvents = fetchLogFileContentAsJson(it.file)
 
                 log.info { "Will log ${capturedEvents.size} events of type $eventType for $date" }
