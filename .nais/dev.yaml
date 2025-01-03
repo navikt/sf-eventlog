@@ -53,7 +53,7 @@ spec:
   accessPolicy:
     inbound:
       rules:
-        - application: curl-job-eventlog
+        - application: eventlog-fetch-job
   envFrom:
     - secret: sf-pubsub-preprod
   env:
