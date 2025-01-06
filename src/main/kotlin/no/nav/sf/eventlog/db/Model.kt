@@ -39,7 +39,7 @@ fun ResultRow.toLogSyncStatus() = LogSyncStatus(
     lastModified = this[LogSyncStatusTable.lastModified]
 )
 
-fun retrieveLogSyncStatusesAsMapMock(): Map<EventType, List<LogSyncStatus>> {
+fun retrieveLogSyncStatusesAsMapMock(): MutableMap<EventType, MutableMap<LocalDate, LogSyncStatus>> {
     // Example hardcoded data
     val logSyncStatusList = listOf(
         LogSyncStatus(
@@ -49,13 +49,13 @@ fun retrieveLogSyncStatusesAsMapMock(): Map<EventType, List<LogSyncStatus>> {
             message = "Sync started successfully. A",
             lastModified = LocalDateTime.of(2024, 12, 1, 10, 0, 0, 0)
         ),
-        LogSyncStatus(
-            syncDate = LocalDate.of(2024, 12, 2),
-            eventType = "FlowExecution",
-            status = "FAILURE",
-            message = "Sync failed due to an error. B",
-            lastModified = LocalDateTime.of(2024, 12, 2, 12, 30, 0, 0)
-        ),
+//        LogSyncStatus(
+//            syncDate = LocalDate.of(2024, 12, 2),
+//            eventType = "FlowExecution",
+//            status = "FAILURE",
+//            message = "Sync failed due to an error. B",
+//            lastModified = LocalDateTime.of(2024, 12, 2, 12, 30, 0, 0)
+//        ),
         LogSyncStatus(
             syncDate = LocalDate.of(2024, 12, 3),
             eventType = "ApexUnexpectedException",
@@ -63,35 +63,38 @@ fun retrieveLogSyncStatusesAsMapMock(): Map<EventType, List<LogSyncStatus>> {
             message = "Sync started successfully. C",
             lastModified = LocalDateTime.of(2024, 12, 3, 9, 0, 0, 0)
         ),
-        LogSyncStatus(
-            syncDate = LocalDate.of(2024, 12, 3),
-            eventType = "FlowExecution",
-            status = "SUCCESS",
-            message = "Sync completed successfully. D",
-            lastModified = LocalDateTime.of(2024, 12, 3, 12, 0, 0, 0)
-        ),
-        LogSyncStatus(
-            syncDate = LocalDate.of(2024, 9, 3),
-            eventType = "FlowExecution",
-            status = "SUCCESS",
-            message = "Old success E",
-            lastModified = LocalDateTime.of(2024, 12, 3, 12, 0, 0, 0)
-        )
+//        LogSyncStatus(
+//            syncDate = LocalDate.of(2024, 12, 3),
+//            eventType = "FlowExecution",
+//            status = "SUCCESS",
+//            message = "Sync completed successfully. D",
+//            lastModified = LocalDateTime.of(2024, 12, 3, 12, 0, 0, 0)
+//        ),
+//        LogSyncStatus(
+//            syncDate = LocalDate.of(2024, 9, 3),
+//            eventType = "FlowExecution",
+//            status = "SUCCESS",
+//            message = "Old success E",
+//            lastModified = LocalDateTime.of(2024, 12, 3, 12, 0, 0, 0)
+//        )
     )
 
     // Group by eventType and convert to a map with EventType as the key
     return logSyncStatusList
-        .groupBy { EventType.valueOf(it.eventType) }
+        .groupBy { EventType.valueOf(it.eventType) } // Group by EventType
         .mapValues { entry ->
-            entry.value.sortedByDescending { it.syncDate }
+            // For each entry, convert the List<LogSyncStatus> into a MutableMap<LocalDate, LogSyncStatus>
+            entry.value
+                .sortedByDescending { it.syncDate } // Sort by syncDate
+                .associateBy { it.syncDate } // Associate by syncDate to create the inner map
+                .toMutableMap() // Convert to a mutable map
         }
+        .toMutableMap()
 }
 
 fun getMetaData(): String {
-    // Fetch the mock data
     val logSyncStatuses = if (local) retrieveLogSyncStatusesAsMapMock() else PostgresDatabase.logSyncStatusMap
-    // retrieveLogSyncStatusesAsMap() // Map<EventType, List<LogSyncStatus>>
-    val logFileDataMap = application.salesforceClient.logFileDataMap // Map<EventType, List<LocalDate>> //Application.salesforceClient.getLogFileDatesMock()
+    val logFileDataMap = application.salesforceClient.logFileDataMap
 
     // Get today's date and calculate the last 30 days
     val now = LocalDateTime.now()
@@ -102,28 +105,23 @@ fun getMetaData(): String {
 
     // For each eventType, process the data
     logFileDataMap.forEach { (eventType, logFileData) ->
-        val eventLogSyncStatuses = logSyncStatuses[eventType]?.sortedByDescending { it.syncDate } ?: emptyList()
+        val eventLogSyncStatuses = logSyncStatuses[eventType] ?: mutableMapOf()
 
-        val olderLogSyncStatuses = eventLogSyncStatuses.filter { it.syncDate !in last30Days }
+        val olderLogSyncStatuses = eventLogSyncStatuses.entries
+            .filter { it.key !in last30Days }
+            .map { it.value }
+            .sortedByDescending { it.syncDate }
+
         // Combine existing LogSyncStatus with synthetic entries for gaps in the last 30 days
         val logSyncDataForEvent = last30Days.map { date ->
-            val existingLog = eventLogSyncStatuses.find { it.syncDate == date }
-
-            if (existingLog != null) {
-                LogSyncStatus(
-                    syncDate = date,
-                    eventType = eventType.name,
-                    status = existingLog.status,
-                    message = existingLog.message,
-                    lastModified = existingLog.lastModified
-                )
-            } else if (logFileData.any { LocalDate.parse(it.date) == date }) {
-                // If no log exists but the log file exists for this date, generate a synthetic log
-                createUnprocessedStatus(date, eventType)
-            } else {
-                // If no log file exists for this date, generate a synthetic log
-                createNoLogfileStatus(date, eventType)
-            }
+            eventLogSyncStatuses[date] // No change to existing Status
+                ?: if (logFileData.any { it.date == date }) {
+                    // If no log exists but the log file exists for this date, generate a synthetic log
+                    createUnprocessedStatus(date, eventType)
+                } else {
+                    // If no log file exists for this date, generate a synthetic log
+                    createNoLogfileStatus(date, eventType)
+                }
         }
 
         // Add the generated data to the result map, making sure to keep logs that are older than 30 days

@@ -1,14 +1,21 @@
-package no.nav.sf.eventlog
+package no.nav.sf.eventlog.salesforce
 
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import mu.KotlinLogging
 import mu.withLoggingContext
+import no.nav.sf.eventlog.EventType
+import no.nav.sf.eventlog.Metrics
+import no.nav.sf.eventlog.SECURE
+import no.nav.sf.eventlog.config_SALESFORCE_API_VERSION
 import no.nav.sf.eventlog.db.LogSyncStatus
 import no.nav.sf.eventlog.db.PostgresDatabase
 import no.nav.sf.eventlog.db.createFailureStatus
 import no.nav.sf.eventlog.db.createNoLogfileStatus
 import no.nav.sf.eventlog.db.createSuccessStatus
+import no.nav.sf.eventlog.env
+import no.nav.sf.eventlog.generateLoggingContext
+import no.nav.sf.eventlog.local
 import no.nav.sf.eventlog.token.AccessTokenHandler
 import no.nav.sf.eventlog.token.DefaultAccessTokenHandler
 import org.apache.commons.csv.CSVFormat
@@ -48,11 +55,11 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
     }
 
     fun getLogFileDatesMock(): Map<EventType, List<LogFileData>> {
-        val eventTypes = listOf(EventType.ApexUnexpectedException, EventType.FlowExecution)
+        val eventTypes = listOf(EventType.ApexUnexpectedException/*, EventType.FlowExecution*/)
 
-        return eventTypes.associateWith { eventType ->
+        return eventTypes.associateWith {
             List(10) {
-                LogFileData(date = LocalDate.now().minusDays((1..30).random().toLong()).toString(), file = "") // Simulate 10 random dates for each event type
+                LogFileData(date = LocalDate.now().minusDays((1..30).random().toLong()), file = "") // Simulate 10 random dates for each event type
                 // Random date in the last 30 days
             }
         }
@@ -61,7 +68,7 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
     fun fetchAndLogEventLogs(eventType: EventType, date: LocalDate): LogSyncStatus {
         log.info { "Will fetch event logs for ${eventType.name} $date" }
         try {
-            val logFilesForDate = logFileDataMap[eventType]?.filter { LocalDate.parse(it.date) == date } ?: listOf()
+            val logFilesForDate = logFileDataMap[eventType]?.filter { it.date == date } ?: listOf()
             if (logFilesForDate.size > 1) throw IllegalStateException("Should never be more then one log file per log date")
             if (logFilesForDate.isEmpty()) {
                 return createNoLogfileStatus(date, eventType)
@@ -137,10 +144,11 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                                 it.asJsonObject["LogDate"].asString.substring(0, 10)
                             )
                         }
-                        LogFileData(file = it.asJsonObject["LogFile"].asString, date = it.asJsonObject["LogDate"].asString.substring(0, 10))
+                        LogFileData(file = it.asJsonObject["LogFile"].asString, date = LocalDate.parse(it.asJsonObject["LogDate"].asString.substring(0, 10)))
                     }
                 )
                 val totalSize = obj["totalSize"].asInt
+
                 log.info { "Completed fetch ${result.count()} of $totalSize log files for ${eventType.name}" }
                 done = obj["done"].asBoolean
                 if (!done) nextRecordsUrl = obj["nextRecordsUrl"].asString
@@ -149,6 +157,8 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                 done = true
             }
         }
+
+        Metrics.fetchedLogs.labels(eventType.name).inc(result.count().toDouble())
 
         return result
     }

@@ -1,0 +1,21 @@
+apiVersion: nais.io/v1
+kind: Naisjob
+metadata:
+  name: eventlog-fetch-job
+  namespace: teamcrm
+  labels:
+    team: teamcrm
+spec:
+  schedule: "0 5 * * *"  # This will run the job every morning at 5:00 AM UTC (6:00 am CET)
+  image: cgr.dev/chainguard/curl:latest
+  accessPolicy:
+    outbound:
+      rules:
+        - application: sf-eventlog
+  command:
+    - sh
+    - -c
+    - |
+      YESTERDAY=$(date -d "yesterday" --utc +%Y-%m-%d)  # Get yesterday's date in ISO format (YYYY-MM-DD)
+      curl -X GET "http://sf-eventlog/internal/test?eventType=ALL&date=$YESTERDAY"
+  restartPolicy: Never

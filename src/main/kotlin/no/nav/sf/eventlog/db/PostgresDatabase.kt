@@ -27,9 +27,9 @@ object PostgresDatabase {
     private var logSyncStatusCacheLastUpdated: LocalDate = LocalDate.MIN
 
     @Volatile
-    private var logSyncStatusCache: MutableMap<EventType, MutableList<LogSyncStatus>> = mutableMapOf()
+    private var logSyncStatusCache: MutableMap<EventType, MutableMap<LocalDate, LogSyncStatus>> = mutableMapOf()
 
-    val logSyncStatusMap: MutableMap<EventType, MutableList<LogSyncStatus>> get() {
+    val logSyncStatusMap: MutableMap<EventType, MutableMap<LocalDate, LogSyncStatus>> get() {
         if (logSyncStatusCacheLastUpdated == LocalDate.now()) {
             log.info { "Using log sync status cache" }
         } else {
@@ -41,12 +41,13 @@ object PostgresDatabase {
     }
 
     fun updateCache(logSyncStatus: LogSyncStatus) {
-        if (logSyncStatusCache.containsKey(EventType.valueOf(logSyncStatus.eventType))) {
-            logSyncStatusCache[EventType.valueOf(logSyncStatus.eventType)] = logSyncStatusCache[EventType.valueOf(logSyncStatus.eventType)]!!.filter { it.syncDate != logSyncStatus.syncDate }.toMutableList()
-        } else {
-            logSyncStatusCache[EventType.valueOf(logSyncStatus.eventType)] = mutableListOf()
-        }
-        logSyncStatusCache[EventType.valueOf(logSyncStatus.eventType)]!!.add(logSyncStatus)
+        val eventType = EventType.valueOf(logSyncStatus.eventType)
+
+        // Use getOrPut to initialize the inner map if it doesn't exist
+        val eventTypeCache = logSyncStatusCache.getOrPut(eventType) { mutableMapOf() }
+
+        // Update the entry for the specific date
+        eventTypeCache[logSyncStatus.syncDate] = logSyncStatus
     }
 
     private val dbUrl = env("$NAIS_DB_PREFIX${context}_URL")
@@ -125,14 +126,13 @@ object PostgresDatabase {
         }
     }
 
-    // Function to retrieve all rows and structure as a Map<EventType, List<LogSyncStatus>>
-    private fun retrieveLogSyncStatusesAsMap(): MutableMap<EventType, MutableList<LogSyncStatus>> {
+    private fun retrieveLogSyncStatusesAsMap(): MutableMap<EventType, MutableMap<LocalDate, LogSyncStatus>> {
         return transaction {
             LogSyncStatusTable.selectAll()
                 .map { it.toLogSyncStatus() }
                 .groupBy { EventType.valueOf(it.eventType) }
                 .mapValues { entry ->
-                    entry.value.sortedByDescending { it.syncDate }.toMutableList()
+                    entry.value.associateBy { it.syncDate }.toMutableMap()
                 }.toMutableMap()
         }
     }

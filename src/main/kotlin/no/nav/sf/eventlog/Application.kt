@@ -3,6 +3,7 @@ package no.nav.sf.eventlog
 import mu.KotlinLogging
 import no.nav.sf.eventlog.db.PostgresDatabase
 import no.nav.sf.eventlog.db.getMetaData
+import no.nav.sf.eventlog.salesforce.SalesforceClient
 import org.http4k.core.HttpHandler
 import org.http4k.core.Method
 import org.http4k.core.Response
@@ -32,7 +33,7 @@ class Application {
         "/internal/isReady" bind Method.GET to { Response(OK) },
         "/internal/metrics" bind Method.GET to Metrics.metricsHttpHandler,
         "/internal/fetchAndLog" bind Method.GET to fetchAndLogHandler,
-        "/internal/test" bind Method.GET to { log.info { "Test path is called" }; Response(OK) },
+        "/internal/test" bind Method.GET to { request -> log.info { "Test path is called with URL: ${request.uri}" }; Response(OK) },
         "/internal/gui" bind Method.GET to static(ResourceLoader.Classpath("gui")),
         "/internal/metadata" bind Method.GET to metaDataHandler
     )
@@ -51,11 +52,10 @@ class Application {
         if (eventTypeArg == "ALL") {
             log.info { "Will fetch event logs for ALL event types (${EventType.values().joinToString(",") { e -> e.name }}) for $date" }
             val result = EventType.values().map { eventType ->
-                if (!local && PostgresDatabase.logSyncStatusMap[eventType]
-                    ?.any { syncStatus -> syncStatus.syncDate == date && syncStatus.status == "SUCCESS" } == true
-                ) {
+                val eventLogsForDate = PostgresDatabase.logSyncStatusMap[eventType]?.get(date)
+                if (!local && eventLogsForDate?.status == "SUCCESS") {
                     log.info { "ALL: Skipping performing fetch and log on $eventType for $date since there is a sync registered as performed successfully already" }
-                    PostgresDatabase.logSyncStatusMap[eventType]!!.first { syncStatus -> syncStatus.syncDate == date && syncStatus.status == "SUCCESS" }
+                    eventLogsForDate
                 } else {
                     salesforceClient.fetchAndLogEventLogs(eventType, date)
                 }
@@ -63,12 +63,11 @@ class Application {
             Response(OK).body(gson.toJson(result))
         } else {
             val eventType = EventType.valueOf(eventTypeArg)
+            val eventLogsForDate = PostgresDatabase.logSyncStatusMap[eventType]?.get(date)
             val result =
-                if (!local && PostgresDatabase.logSyncStatusMap[eventType]
-                    ?.any { syncStatus -> syncStatus.syncDate == date && syncStatus.status == "SUCCESS" } == true
-                ) {
+                if (!local && eventLogsForDate?.status == "SUCCESS") {
                     log.info { "Skipping performing fetch and log on $eventType for $date since there is a sync registered as performed successfully already" }
-                    PostgresDatabase.logSyncStatusMap[eventType]!!.first { syncStatus -> syncStatus.syncDate == date && syncStatus.status == "SUCCESS" }
+                    eventLogsForDate
                 } else {
                     salesforceClient.fetchAndLogEventLogs(eventType, date)
                 }

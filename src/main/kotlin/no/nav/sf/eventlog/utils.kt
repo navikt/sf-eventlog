@@ -45,7 +45,7 @@ class LocalDateTimeAdapter : JsonSerializer<LocalDateTime>, JsonDeserializer<Loc
         return LocalDateTime.parse(json.asString, formatter)
     }
 }
-// 2024-12-12T15:35:24.477598
+
 // Configure Gson with custom adapters
 fun configureGson(): Gson {
     return GsonBuilder()
