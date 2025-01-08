@@ -13,9 +13,6 @@ spec:
       rules:
         - application: sf-eventlog
   command:
-    - sh
-    - -c
-    - |
-      YESTERDAY=$(date -d "yesterday" --utc +%Y-%m-%d)  # Get yesterday's date in ISO format (YYYY-MM-DD)
-      curl -X GET "http://sf-eventlog/internal/test?eventType=ALL&date=$YESTERDAY"
+    - curl
+    - http://sf-eventlog/internal/fetchAndLogYesterday
   restartPolicy: Never

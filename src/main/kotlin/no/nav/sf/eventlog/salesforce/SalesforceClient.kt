@@ -54,6 +54,9 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
         return logFileDataCache
     }
 
+    fun isLogFileToFetch(date: LocalDate, eventType: EventType): Boolean =
+        logFileDataMap[eventType]?.any { it.date == date } == true
+
     fun getLogFileDatesMock(): Map<EventType, List<LogFileData>> {
         val eventTypes = listOf(EventType.ApexUnexpectedException/*, EventType.FlowExecution*/)
 
