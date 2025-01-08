@@ -48,7 +48,7 @@ jobs:
           identity_provider: ${{ secrets.NAIS_WORKLOAD_IDENTITY_PROVIDER }}
           project_id: ${{ vars.NAIS_MANAGEMENT_PROJECT_ID }}
   deploy-dev:
-    name: Deploy sf-nada-crm to dev-gcp
+    name: Deploy sf-eventlog to dev-gcp
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -61,18 +61,18 @@ jobs:
           CLUSTER: dev-gcp
           RESOURCE: .nais/dev.yaml
           VAR: image=${{ needs.build.outputs.image }}
-#  deploy-prod:
-#    name: Deploy sf-nada-crm to prod-gcp
-#    needs: build
-#    if: github.ref == 'refs/heads/main'
-#    runs-on: ubuntu-latest
-#    permissions:
-#      id-token: write
-#      contents: read
-#    steps:
-#      - uses: actions/checkout@v4
-#      - uses: nais/deploy/actions/deploy@v2
-#        env:
-#          CLUSTER: prod-gcp
-#          RESOURCE: .nais/prod.yaml
-#          VAR: image=${{ needs.build.outputs.image }}
+  deploy-prod:
+    name: Deploy sf-eventlog to prod-gcp
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: nais/deploy/actions/deploy@v2
+        env:
+          CLUSTER: prod-gcp
+          RESOURCE: .nais/prod.yaml
+          VAR: image=${{ needs.build.outputs.image }}

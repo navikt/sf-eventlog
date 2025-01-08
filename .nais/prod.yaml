@@ -1,7 +1,7 @@
 apiVersion: "nais.io/v1alpha1"
 kind: "Application"
 metadata:
-  name: template
+  name: sf-eventlog
   namespace: teamcrm
   labels:
     team: teamcrm
@@ -37,8 +37,8 @@ spec:
         tier: db-f1-micro
         databases:
           - name: sf-eventlog-prod
-  #  ingresses:
-  #    - "https://sf-mellomvare.template.intern.nav.no"
+    ingresses:
+      - "https://sf-eventlog.intern.nav.no"
   #  azure:
   #    application:
   #      enabled: true
@@ -55,8 +55,12 @@ spec:
   #        - application: salesforce
   #          namespace: teamcrm
   #          cluster: prod-external
-    envFrom:
-      - secret: sf-eventlog
+  accessPolicy:
+    inbound:
+      rules:
+        - application: eventlog-fetch-job
+  envFrom:
+    - secret: sf-eventlog
   env:
     - name: SALESFORCE_API_VERSION
       value: "v58.0"

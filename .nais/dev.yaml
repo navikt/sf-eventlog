@@ -37,8 +37,8 @@ spec:
         tier: db-f1-micro
         databases:
           - name: sf-eventlog-dev
-  ingresses:
-    - "https://sf-eventlog.intern.dev.nav.no"
+    ingresses:
+      - "https://sf-eventlog.intern.dev.nav.no"
 #  azure:
 #    application:
 #      enabled: true
