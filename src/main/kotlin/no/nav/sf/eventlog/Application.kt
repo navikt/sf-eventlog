@@ -44,7 +44,7 @@ class Application {
     fun start() {
         log.info { "Starting in cluster $cluster" }
         apiServer().start()
-        if (cluster == "prod-gcp") PostgresDatabase.create()
+        // if (cluster == "prod-gcp") PostgresDatabase.create()
         // salesforceClient.fetchLogFiles(EventType.ApexUnexpectedException)
     }
 
