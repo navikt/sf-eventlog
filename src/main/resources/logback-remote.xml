@@ -1,13 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <configuration>
-    <!-- Add AsyncAppender for appLog to avoid blocking the application -->
-    <appender name="asyncAppLog" class="ch.qos.logback.classic.AsyncAppender">
-        <queueSize>10000</queueSize> <!-- Adjust queue size based on expected log volume -->
-        <discardingThreshold>0</discardingThreshold> <!-- Disable discarding logs -->
-        <appender-ref ref="consoleAppLog"/>
-    </appender>
-
-    <appender name="consoleAppLog" class="ch.qos.logback.core.ConsoleAppender">
+    <appender name="appLog" class="ch.qos.logback.core.ConsoleAppender">
         <encoder class="net.logstash.logback.encoder.LogstashEncoder"/>
         <filter class="ch.qos.logback.core.filter.EvaluatorFilter">
             <evaluator class="ch.qos.logback.classic.boolex.OnMarkerEvaluator">
@@ -18,19 +11,12 @@
         </filter>
     </appender>
 
-    <!-- Secure log uses rolling file with async wrapper -->
-    <appender name="asyncSecureLog" class="ch.qos.logback.classic.AsyncAppender">
-        <queueSize>10000</queueSize> <!-- Separate async queue for secure logs -->
-        <discardingThreshold>0</discardingThreshold>
-        <appender-ref ref="rollingSecureLog"/>
-    </appender>
-
-    <appender name="rollingSecureLog" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <appender name="secureLog" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>/secure-logs/secure.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
             <fileNamePattern>/secure-logs/secure.log.%i</fileNamePattern>
             <minIndex>1</minIndex>
-            <maxIndex>5</maxIndex> <!-- Retain 5 files for backup -->
+            <maxIndex>1</maxIndex>
         </rollingPolicy>
         <triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
             <maxFileSize>128MB</maxFileSize>
@@ -45,9 +31,8 @@
         </filter>
     </appender>
 
-    <!-- Root logger -->
     <root level="INFO">
-        <appender-ref ref="asyncAppLog"/>
-        <appender-ref ref="asyncSecureLog"/>
+        <appender-ref ref="appLog"/>
+        <appender-ref ref="secureLog"/>
     </root>
 </configuration>

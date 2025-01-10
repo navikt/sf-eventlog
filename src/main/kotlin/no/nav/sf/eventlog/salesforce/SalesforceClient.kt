@@ -88,7 +88,7 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
 
                 log.info { "Will log ${capturedEvents.size} events of type $eventType for $date" }
 
-                var logCounter = 0 // To pause every 1000th record
+                var logCounter = 0 // To pause every 100th record
                 capturedEvents.forEach { event ->
                     val logMessage = if (eventType.messageField.isNotBlank()) {
                         event[eventType.messageField]?.asString ?: "N/A"
@@ -109,7 +109,7 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                     }
 
                     logCounter++
-                    if (logCounter % 1000 == 0) {
+                    if (logCounter % 100 == 0) {
                         Thread.sleep(1000) // Pause for 1 second
                     }
                 }
