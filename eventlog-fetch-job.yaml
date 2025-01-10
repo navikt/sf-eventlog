@@ -6,7 +6,7 @@ metadata:
   labels:
     team: teamcrm
 spec:
-  schedule: "0 5 * * *"  # This will run the job every morning at 5:00 AM UTC (6:00 am CET)
+  schedule: "0 12 * * *"  # This will run the job every day at 12:00 PM UTC (1:00 PM CET)
   image: cgr.dev/chainguard/curl:latest
   accessPolicy:
     outbound:
