@@ -24,12 +24,11 @@ enum class EventType(
             "USER_ID_DERIVED"
         )
     ),
-//
 //    FlowExecution(
 //        messageField = "",
 //        insensitiveFields = listOf(),
 //        sensitiveFields = listOf()
-//    );
+//    )
 }
 
 fun EventType.generateLoggingContext(eventData: JsonObject, excludeSensitive: Boolean): Map<String, String> {

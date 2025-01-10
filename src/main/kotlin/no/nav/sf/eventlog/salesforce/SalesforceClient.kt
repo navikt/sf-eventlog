@@ -37,6 +37,8 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
 
     private val client = ApacheClient()
 
+    private val useCache = false
+
     private var logFileCacheLastUpdated: LocalDate = LocalDate.MIN
 
     private var logFileDataCache: Map<EventType, List<LogFileData>> = mapOf()
@@ -47,10 +49,10 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
     }
 
     val logFileDataMap: Map<EventType, List<LogFileData>> get() {
-        if (logFileCacheLastUpdated == LocalDate.now()) {
+        if (useCache && logFileCacheLastUpdated == LocalDate.now()) {
             log.info { "Using log file dates cache" }
         } else {
-            log.info { "Cache invalid : Fetching log file dates" }
+            log.info { "${if (useCache) "Cache invalid : " else ""}Fetching log file dates" }
             logFileDataCache = EventType.values().associateWith { eventType ->
                 fetchLogFiles(eventType)
             }
