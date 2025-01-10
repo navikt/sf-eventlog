@@ -29,6 +29,11 @@ object PostgresDatabase {
     @Volatile
     private var logSyncStatusCache: MutableMap<EventType, MutableMap<LocalDate, LogSyncStatus>> = mutableMapOf()
 
+    fun clearCache() {
+        logSyncStatusCache = mutableMapOf()
+        logSyncStatusCacheLastUpdated = LocalDate.MIN
+    }
+
     val logSyncStatusMap: MutableMap<EventType, MutableMap<LocalDate, LogSyncStatus>> get() {
         if (logSyncStatusCacheLastUpdated == LocalDate.now()) {
             log.info { "Using log sync status cache" }

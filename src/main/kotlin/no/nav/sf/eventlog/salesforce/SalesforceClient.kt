@@ -41,6 +41,11 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
 
     private var logFileDataCache: Map<EventType, List<LogFileData>> = mapOf()
 
+    fun clearCache() {
+        logFileDataCache = mutableMapOf()
+        logFileCacheLastUpdated = LocalDate.MIN
+    }
+
     val logFileDataMap: Map<EventType, List<LogFileData>> get() {
         if (logFileCacheLastUpdated == LocalDate.now()) {
             log.info { "Using log file dates cache" }

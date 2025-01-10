@@ -38,7 +38,12 @@ class Application {
         "/internal/fetchAndLogYesterday" bind Method.GET to fetchAndLogYesterdayHandler,
         "/internal/test" bind Method.GET to { request -> log.info { "Test path is called with URL: ${request.uri}" }; Response(OK) },
         "/internal/gui" bind Method.GET to static(ResourceLoader.Classpath("gui")),
-        "/internal/metadata" bind Method.GET to metaDataHandler
+        "/internal/metadata" bind Method.GET to metaDataHandler,
+        "/internal/clearCaches" bind Method.GET to {
+            salesforceClient.clearCache()
+            PostgresDatabase.clearCache()
+            Response(OK).body("Caches cleared")
+        }
     )
 
     fun start() {
