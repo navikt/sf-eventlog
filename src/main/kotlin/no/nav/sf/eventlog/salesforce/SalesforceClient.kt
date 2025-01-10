@@ -47,7 +47,7 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
         } else {
             log.info { "Cache invalid : Fetching log file dates" }
             logFileDataCache = EventType.values().associateWith { eventType ->
-                fetchLogFiles(eventType).map { it }
+                fetchLogFiles(eventType)
             }
             logFileCacheLastUpdated = LocalDate.now()
         }
@@ -168,6 +168,8 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
         }
 
         Metrics.fetchedLogs.labels(eventType.name).inc(result.count().toDouble())
+
+        File("/tmp/latestFileLogs-${eventType.name}").writeText(result.toString())
 
         return result
     }
