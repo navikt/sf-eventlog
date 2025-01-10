@@ -77,10 +77,11 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                 return createNoLogfileStatus(date, eventType)
             }
             logFilesForDate.first().let {
-                // TODO make sure there is not a successful run stored in db. (Is doing before this function)
                 val capturedEvents = fetchLogFileContentAsJson(it.file)
 
                 log.info { "Will log ${capturedEvents.size} events of type $eventType for $date" }
+
+                var logCounter = 0 // To pause every 1000th record
                 capturedEvents.forEach { event ->
                     val logMessage = if (eventType.messageField.isNotBlank()) {
                         event[eventType.messageField]?.asString ?: "N/A"
@@ -98,6 +99,11 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                     }
                     withLoggingContext(fullContext) {
                         log.error(SECURE, logMessage)
+                    }
+
+                    logCounter++
+                    if (logCounter % 1000 == 0) {
+                        Thread.sleep(1000) // Pause for 1 second
                     }
                 }
                 val successState = createSuccessStatus(date, eventType, "Logged ${capturedEvents.size} events of type ${eventType.name} for $date")
