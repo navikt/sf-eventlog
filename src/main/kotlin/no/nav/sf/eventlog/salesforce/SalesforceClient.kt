@@ -7,6 +7,7 @@ import mu.KotlinLogging
 import mu.withLoggingContext
 import no.nav.sf.eventlog.EventType
 import no.nav.sf.eventlog.Metrics
+import no.nav.sf.eventlog.SECURE
 import no.nav.sf.eventlog.config_SALESFORCE_API_VERSION
 import no.nav.sf.eventlog.db.LogSyncStatus
 import no.nav.sf.eventlog.db.PostgresDatabase
@@ -77,6 +78,7 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
 
     fun fetchAndLogEventLogs(eventType: EventType, date: LocalDate): LogSyncStatus {
         log.info { "Will fetch event logs for ${eventType.name} $date" }
+        var logCounterGlobal = 1
         try {
             val logFilesForDate = logFileDataMap[eventType]?.filter { it.date == date } ?: listOf()
             if (logFilesForDate.size > 1) throw IllegalStateException("Should never be more then one log file per log date")
@@ -88,7 +90,6 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
 
                 log.info { "Will log ${capturedEvents.size} events of type $eventType for $date" }
 
-                var logCounterGlobal = 1
                 var logCounter = 0 // To pause every 100th record
                 capturedEvents.forEach { event ->
                     File("/tmp/latestEvent").writeText(event.toString())
@@ -103,13 +104,12 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                         eventType.generateLoggingContext(eventData = event, excludeSensitive = true)
                     val fullContext = eventType.generateLoggingContext(eventData = event, excludeSensitive = false)
 
-                    log.info { "Creating logging ns context for log $logCounterGlobal" }
                     withLoggingContext(nonSensitiveContext) {
-                        // log.error(logMessage)
+                        log.error(logMessage)
                     }
-                    log.info { "Creating logging s! context for log $logCounterGlobal" }
+
                     withLoggingContext(fullContext) {
-                        // log.error(SECURE, logMessage)
+                        log.error(SECURE, logMessage)
                     }
 
                     logCounterGlobal++
@@ -126,7 +126,7 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                 return successState
             }
         } catch (e: Exception) {
-            val failureState = createFailureStatus(date, eventType, e.javaClass.name + ":" + e.message)
+            val failureState = createFailureStatus(date, eventType, "(At row $logCounterGlobal) " + e.javaClass.name + ":" + e.message)
             if (!local) {
                 PostgresDatabase.upsertLogSyncStatus(failureState)
                 PostgresDatabase.updateCache(failureState)
