@@ -47,20 +47,20 @@ jobs:
           team: teamcrm
           identity_provider: ${{ secrets.NAIS_WORKLOAD_IDENTITY_PROVIDER }}
           project_id: ${{ vars.NAIS_MANAGEMENT_PROJECT_ID }}
-  deploy-dev:
-    name: Deploy sf-eventlog to dev-gcp
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: nais/deploy/actions/deploy@v2
-        env:
-          CLUSTER: dev-gcp
-          RESOURCE: .nais/dev.yaml
-          VAR: image=${{ needs.build.outputs.image }}
+#  deploy-dev:
+#    name: Deploy sf-eventlog to dev-gcp
+#    needs: build
+#    runs-on: ubuntu-latest
+#    permissions:
+#      id-token: write
+#      contents: write
+#    steps:
+#      - uses: actions/checkout@v4
+#      - uses: nais/deploy/actions/deploy@v2
+#        env:
+#          CLUSTER: dev-gcp
+#          RESOURCE: .nais/dev.yaml
+#          VAR: image=${{ needs.build.outputs.image }}
   deploy-prod:
     name: Deploy sf-eventlog to prod-gcp
     needs: build

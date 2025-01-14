@@ -1,12 +1,12 @@
 package no.nav.sf.eventlog.salesforce
 
+import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import mu.KotlinLogging
 import mu.withLoggingContext
 import no.nav.sf.eventlog.EventType
 import no.nav.sf.eventlog.Metrics
-import no.nav.sf.eventlog.SECURE
 import no.nav.sf.eventlog.config_SALESFORCE_API_VERSION
 import no.nav.sf.eventlog.db.LogSyncStatus
 import no.nav.sf.eventlog.db.PostgresDatabase
@@ -90,6 +90,7 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
 
                 var logCounter = 0 // To pause every 100th record
                 capturedEvents.forEach { event ->
+                    File("/tmp/latestEvent").writeText(event.toString())
                     val logMessage = if (eventType.messageField.isNotBlank()) {
                         event[eventType.messageField]?.asString ?: "N/A"
                     } else {
@@ -102,10 +103,10 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                     val fullContext = eventType.generateLoggingContext(eventData = event, excludeSensitive = false)
 
                     withLoggingContext(nonSensitiveContext) {
-                        log.error(logMessage)
+                        // log.error(logMessage)
                     }
                     withLoggingContext(fullContext) {
-                        log.error(SECURE, logMessage)
+                        // log.error(SECURE, logMessage)
                     }
 
                     logCounter++
@@ -223,6 +224,7 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
         }
         csvParser.close()
         reader.close()
+        File("/tmp/latestJson").writeText(Gson().toJson(result))
 
         return result
     }
