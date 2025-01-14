@@ -91,7 +91,7 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
 
                 var logCounter = 0 // To pause every 100th record
                 capturedEvents.forEach { event ->
-                    File("/tmp/latestEvent").writeText(event.toString())
+                    // File("/tmp/latestEvent").writeText(event.toString())
                     val logMessage = if (eventType.messageField.isNotBlank()) {
                         event[eventType.messageField]?.asString ?: "N/A"
                     } else {
@@ -114,9 +114,11 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                     logCounterGlobal++
                     logCounter++
                     if (logCounter % 100 == 0) {
-                        Thread.sleep(1000) // Pause for 1 second
+                        log.info { "Logged $logCounter of ${capturedEvents.size} events" }
+                        Thread.sleep(2000) // Pause for 2 second
                     }
                 }
+                log.info { "Finally logged $logCounter of ${capturedEvents.size} events" }
                 val successState = createSuccessStatus(date, eventType, "Logged ${capturedEvents.size} events of type ${eventType.name} for $date")
                 if (!local) {
                     PostgresDatabase.upsertLogSyncStatus(successState)
@@ -125,7 +127,8 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                 return successState
             }
         } catch (e: Exception) {
-            val failureState = createFailureStatus(date, eventType, "(At row $logCounterGlobal) " + e.javaClass.name + ":" + e.message)
+            log.warn { "Process interrupted " + e.javaClass.name + ":" + e.message }
+            val failureState = createFailureStatus(date, eventType, e.javaClass.name + ":" + e.message)
             if (!local) {
                 PostgresDatabase.upsertLogSyncStatus(failureState)
                 PostgresDatabase.updateCache(failureState)
