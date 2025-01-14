@@ -43,7 +43,8 @@ class Application {
             salesforceClient.clearCache()
             PostgresDatabase.clearCache()
             Response(OK).body("Caches cleared")
-        }
+        },
+        "/internal/clearStatus" bind Method.GET to clearStatusHandler,
     )
 
     fun start() {
@@ -55,6 +56,14 @@ class Application {
         }
         // if (cluster == "prod-gcp") PostgresDatabase.create()
         // salesforceClient.fetchLogFiles(EventType.ApexUnexpectedException)
+    }
+
+    private val clearStatusHandler: HttpHandler = {
+        val date = LocalDate.parse(it.query("date")!!)
+        val eventTypeArg = it.query("eventType")!!
+        val eventType = EventType.valueOf(eventTypeArg)
+        PostgresDatabase.deleteLogSyncStatus(date, eventType)
+        Response(OK).body("Done")
     }
 
     private val fetchAndLogHandler: HttpHandler = {

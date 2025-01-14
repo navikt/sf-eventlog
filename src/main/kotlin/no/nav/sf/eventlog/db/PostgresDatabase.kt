@@ -8,7 +8,9 @@ import no.nav.sf.eventlog.config_CONTEXT
 import no.nav.sf.eventlog.env
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
+import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.TransactionManager
@@ -129,6 +131,16 @@ object PostgresDatabase {
         return transaction {
             LogSyncStatusTable.deleteWhere { LogSyncStatusTable.lastModified less thresholdDate }
         }
+    }
+
+    // Function to delete a row
+    fun deleteLogSyncStatus(date: LocalDate, eventType: EventType) {
+        transaction {
+            LogSyncStatusTable.deleteWhere {
+                (LogSyncStatusTable.syncDate eq date) and (LogSyncStatusTable.eventType eq eventType.name)
+            }
+        }
+        clearCache()
     }
 
     private fun retrieveLogSyncStatusesAsMap(): MutableMap<EventType, MutableMap<LocalDate, LogSyncStatus>> {

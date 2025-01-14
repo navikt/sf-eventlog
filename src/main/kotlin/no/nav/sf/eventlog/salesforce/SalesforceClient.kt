@@ -1,6 +1,5 @@
 package no.nav.sf.eventlog.salesforce
 
-import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import mu.KotlinLogging
@@ -206,7 +205,7 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
     }
 
     private fun parseCSVToJsonObjects(csvData: String): List<JsonObject> {
-        File("/tmp/latestCsvData").writeText(csvData)
+        // File("/tmp/latestCsvData").writeText(csvData)
         val result: MutableList<JsonObject> = mutableListOf()
 
         val reader = StringReader(csvData)
@@ -228,7 +227,7 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
         }
         csvParser.close()
         reader.close()
-        File("/tmp/latestJson").writeText(Gson().toJson(result))
+        // File("/tmp/latestJson").writeText(Gson().toJson(result))
 
         return result
     }
