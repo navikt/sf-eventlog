@@ -88,6 +88,7 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
 
                 log.info { "Will log ${capturedEvents.size} events of type $eventType for $date" }
 
+                var logCounterGlobal = 1
                 var logCounter = 0 // To pause every 100th record
                 capturedEvents.forEach { event ->
                     File("/tmp/latestEvent").writeText(event.toString())
@@ -102,13 +103,16 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                         eventType.generateLoggingContext(eventData = event, excludeSensitive = true)
                     val fullContext = eventType.generateLoggingContext(eventData = event, excludeSensitive = false)
 
+                    log.info { "Creating logging ns context for log $logCounterGlobal" }
                     withLoggingContext(nonSensitiveContext) {
                         // log.error(logMessage)
                     }
+                    log.info { "Creating logging s! context for log $logCounterGlobal" }
                     withLoggingContext(fullContext) {
                         // log.error(SECURE, logMessage)
                     }
 
+                    logCounterGlobal++
                     logCounter++
                     if (logCounter % 100 == 0) {
                         Thread.sleep(1000) // Pause for 1 second
