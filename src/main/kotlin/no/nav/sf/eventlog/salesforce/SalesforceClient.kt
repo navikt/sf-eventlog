@@ -7,6 +7,7 @@ import mu.withLoggingContext
 import no.nav.sf.eventlog.EventType
 import no.nav.sf.eventlog.Metrics
 import no.nav.sf.eventlog.SECURE
+import no.nav.sf.eventlog.TransferJob
 import no.nav.sf.eventlog.config_SALESFORCE_API_VERSION
 import no.nav.sf.eventlog.db.LogSyncStatus
 import no.nav.sf.eventlog.db.PostgresDatabase
@@ -86,6 +87,7 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
             logFilesForDate.first().let {
                 val capturedEvents = fetchLogFileContentAsJson(it.file)
 
+                TransferJob.goal = capturedEvents.size
                 log.info { "Will log ${capturedEvents.size} events of type $eventType for $date" }
 
                 var logCounter = 0 // To pause every 100th record
@@ -111,9 +113,10 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                     }
 
                     logCounter++
+                    TransferJob.progress = logCounter
                     if (logCounter % 100 == 0) {
                         log.info { "Logged $logCounter of ${capturedEvents.size} events" }
-                        Thread.sleep(2000) // Pause for 2 second
+                        Thread.sleep(1000) // Pause for 1 second
                     }
                 }
                 log.info { "Finally logged $logCounter of ${capturedEvents.size} events" }

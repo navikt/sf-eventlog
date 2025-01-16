@@ -164,7 +164,7 @@ document.addEventListener("DOMContentLoaded", function () {
                                         if (status === 200) {
                                             // Start polling /internal/transferStatus
                                             const pollTransferStatus = () => {
-                                                fetch('/internal/transferStatus', { method: "GET" })
+                                                fetch('/internal/transferStatus?date=' + logStatusRow["syncDate"] + '&eventType=' + logStatusRow["eventType"], { method: "GET" })
                                                     .then(response => {
                                                         if (response.ok) {
                                                             return response.json().then(data => ({
@@ -179,7 +179,7 @@ document.addEventListener("DOMContentLoaded", function () {
                                                         }
                                                     })
                                                     .then(({ status, body }) => {
-                                                        if (status === 100) {
+                                                        if (status === 202) {
                                                             // Update the messageCell with the response body
                                                             messageCell.textContent = body;
                                                             // Continue polling

@@ -54,9 +54,9 @@ object TransferJob {
                 Response(Status.OK).body(application.gson.toJson(status))
             } else if (active) {
                 if (goal == 0) {
-                    Response(Status.CONTINUE).body("Preparing transfer")
+                    Response(Status.ACCEPTED).body("Preparing transfer")
                 } else {
-                    Response(Status.CONTINUE).body("$progress of $goal")
+                    Response(Status.ACCEPTED).body("$progress of $goal")
                 }
             } else {
                 Response(Status.FORBIDDEN).body("Forbidden state - done without status")
