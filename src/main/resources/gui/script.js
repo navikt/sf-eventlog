@@ -166,7 +166,7 @@ document.addEventListener("DOMContentLoaded", function () {
                                             const pollTransferStatus = () => {
                                                 fetch('/internal/transferStatus?date=' + logStatusRow["syncDate"] + '&eventType=' + logStatusRow["eventType"], { method: "GET" })
                                                     .then(response => {
-                                                        if (response.ok) {
+                                                        if (response.status === 200) { {
                                                             return response.json().then(data => ({
                                                                 status: response.status,
                                                                 body: data
