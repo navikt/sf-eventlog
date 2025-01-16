@@ -4,11 +4,14 @@ import mu.KotlinLogging
 import no.nav.sf.eventlog.db.LogSyncStatus
 import no.nav.sf.eventlog.db.PostgresDatabase
 import no.nav.sf.eventlog.db.createNoLogfileStatus
+import no.nav.sf.eventlog.db.createProcessingStatus
+import no.nav.sf.eventlog.db.createUnprocessedStatus
 import no.nav.sf.eventlog.db.getMetaData
 import no.nav.sf.eventlog.salesforce.SalesforceClient
 import org.http4k.core.HttpHandler
 import org.http4k.core.Method
 import org.http4k.core.Response
+import org.http4k.core.Status
 import org.http4k.core.Status.Companion.OK
 import org.http4k.routing.ResourceLoader
 import org.http4k.routing.bind
@@ -45,6 +48,7 @@ class Application {
             Response(OK).body("Caches cleared")
         },
         "/internal/clearStatus" bind Method.GET to clearStatusHandler,
+        "/internal/transferStatus" bind Method.GET to TransferJob.statusHandler
     )
 
     fun start() {
@@ -88,13 +92,27 @@ class Application {
             } else if (!local && eventLogsForDate?.status == "SUCCESS") {
                 log.info { "Skipping performing fetch and log on $eventType for $date since there is a sync registered as performed successfully already" }
                 eventLogsForDate
+            } else if (TransferJob.active) {
+                log.info { "Skipping performing fetch and log on $eventType for $date since there is a job in progress" }
+                createUnprocessedStatus(date, eventType)
             } else {
-                salesforceClient.fetchAndLogEventLogs(eventType, date)
+                TransferJob.activateTransferJob(date, eventType)
+                createProcessingStatus(date, eventType)
             }
         }
         return if (eventTypeArg == "ALL") {
             log.info { "Will fetch event logs for ALL event types (${EventType.values().joinToString(",") { it.name }}) for $date" }
-            val result = EventType.values().map { handleEventLogs(it) }
+            val result = EventType.values().map {
+                var status = handleEventLogs(it)
+                if (status.status == "PROCESSING") {
+                    while (TransferJob.pollStatus(date, it).status == Status.CONTINUE) {
+                        log.info { "Transfer ALL in progress, sleep 30 s" }
+                        Thread.sleep(30000)
+                    }
+                    status = TransferJob.status!!
+                }
+                status
+            }
             Response(OK).body(gson.toJson(result))
         } else {
             val result = handleEventLogs(EventType.valueOf(eventTypeArg))

@@ -151,6 +151,15 @@ fun createUnprocessedStatus(date: LocalDate, eventType: EventType) =
         lastModified = LocalDateTime.now()
     )
 
+fun createProcessingStatus(date: LocalDate, eventType: EventType) =
+    LogSyncStatus(
+        syncDate = date,
+        eventType = eventType.name,
+        status = "PROCESSING",
+        message = "Processing",
+        lastModified = LocalDateTime.now()
+    )
+
 fun createFailureStatus(date: LocalDate, eventType: EventType, message: String) =
     LogSyncStatus(
         syncDate = date,

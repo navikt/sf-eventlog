@@ -181,6 +181,21 @@ body {
     vertical-align: middle; /* Ensures alignment with other inline elements */
     line-height: normal;
 }
+.PROCESSING {
+    width: 90px;
+    display: inline-block;
+    background-color: #cd927d;
+    border: 1px solid #af9c8d;
+    border-radius: 5px;
+    padding: 3px 8px;
+    margin: 2px;
+    font-size: 12px;
+    color: #464847;
+    text-align: center; /* Center the text */
+    vertical-align: middle; /* Ensures alignment with other inline elements */
+    line-height: normal;
+}
+
 .SUCCESS {
     width: 90px;
     display: inline-block;

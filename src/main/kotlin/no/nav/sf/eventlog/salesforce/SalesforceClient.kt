@@ -77,7 +77,6 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
 
     fun fetchAndLogEventLogs(eventType: EventType, date: LocalDate): LogSyncStatus {
         log.info { "Will fetch event logs for ${eventType.name} $date" }
-        var logCounterGlobal = 1
         try {
             val logFilesForDate = logFileDataMap[eventType]?.filter { it.date == date } ?: listOf()
             if (logFilesForDate.size > 1) throw IllegalStateException("Should never be more then one log file per log date")
@@ -111,7 +110,6 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                         log.error(SECURE, logMessage)
                     }
 
-                    logCounterGlobal++
                     logCounter++
                     if (logCounter % 100 == 0) {
                         log.info { "Logged $logCounter of ${capturedEvents.size} events" }

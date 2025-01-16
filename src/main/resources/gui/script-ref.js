@@ -130,7 +130,6 @@ document.addEventListener("DOMContentLoaded", function () {
                             const messageCell = td.nextElementSibling;
                             const statusCell = td.previousElementSibling;
                             const lastModifiedCell = messageCell.nextElementSibling;
-
                             if (messageCell) {
                                 // Clear the cell content
                                 messageCell.textContent = "";
@@ -138,9 +137,9 @@ document.addEventListener("DOMContentLoaded", function () {
                                 // Create and add the spinner
                                 const spinner = document.createElement("div");
                                 spinner.classList.add("small-spinner");
-                                spinner.style.display = "block";
+                                spinner.style.display="block";
                                 messageCell.appendChild(spinner);
-                                button.style.display = "none";
+                                button.style.display="none";
 
                                 fetch('/internal/fetchAndLog?date=' + logStatusRow["syncDate"] + '&eventType=' + logStatusRow["eventType"], {
                                     method: "GET",
@@ -161,85 +160,38 @@ document.addEventListener("DOMContentLoaded", function () {
                                         }
                                     })
                                     .then(({ status, body }) => {
+                                        spinner.style.display = "none";
                                         if (status === 200) {
-                                            // Start polling /internal/transferStatus
-                                            const pollTransferStatus = () => {
-                                                fetch('/internal/transferStatus', { method: "GET" })
-                                                    .then(response => {
-                                                        if (response.ok) {
-                                                            return response.json().then(data => ({
-                                                                status: response.status,
-                                                                body: data
-                                                            }));
-                                                        } else {
-                                                            return response.text().then(text => ({
-                                                                status: response.status,
-                                                                body: text
-                                                            }));
-                                                        }
-                                                    })
-                                                    .then(({ status, body }) => {
-                                                        if (status === 100) {
-                                                            // Update the messageCell with the response body
-                                                            messageCell.textContent = body;
-                                                            // Continue polling
-                                                            setTimeout(pollTransferStatus, 1000);
-                                                        } else if (status === 200) {
-                                                            // Final successful response
-                                                            spinner.style.display = "none";
-                                                            const statusSpan = document.createElement('span');
-                                                            statusSpan.textContent = body["status"];
-                                                            statusSpan.classList.add(body["status"]);
-                                                            statusCell.innerHTML = "";
-                                                            statusCell.appendChild(statusSpan);
-                                                            messageCell.textContent = body["message"];
-                                                            if (body["status"] !== "NO_LOGFILE") {
-                                                                lastModifiedCell.textContent = body["lastModified"];
-                                                            }
-                                                            // Handle failure status
-                                                            if (body["status"] === "FAILURE") {
-                                                                row.classList.add("failedRow");
-                                                                button.style.display = "block";
-                                                            } else {
-                                                                row.classList.remove("failedRow");
-                                                            }
-                                                        } else {
-                                                            // Handle polling failure
-                                                            spinner.style.display = "none";
-                                                            row.classList.add("failedRow");
-                                                            messageCell.textContent = `Fail: ${body}`;
-                                                            button.style.display = "block";
-                                                        }
-                                                    })
-                                                    .catch(err => {
-                                                        // Handle fetch error
-                                                        spinner.style.display = "none";
-                                                        row.classList.add("failedRow");
-                                                        messageCell.textContent = `Fail: ${err.message}`;
-                                                        button.style.display = "block";
-                                                    });
-                                            };
-
-                                            // Start the polling
-                                            pollTransferStatus();
+                                            const statusSpan = document.createElement('span');
+                                            statusSpan.textContent = body["status"];
+                                            statusSpan.classList.add(body["status"]);
+                                            statusCell.innerHTML = ""
+                                            statusCell.appendChild(statusSpan)
+                                            messageCell.textContent = body["message"]
+                                            if (body["status"] !== "NO_LOGFILE") {
+                                                lastModifiedCell.textContent = body["lastModified"]
+                                            }
+                                            // Check if the status is "FAILURE" and add the class to the row
+                                            if (body["status"] === "FAILURE") {
+                                                row.classList.add("failedRow");
+                                                button.style.display="block";
+                                            } else {
+                                                row.classList.remove("failedRow");
+                                            }
                                         } else {
-                                            // Handle initial fetchAndLog failure
-                                            spinner.style.display = "none";
+                                            button.style.display="block";
                                             row.classList.add("failedRow");
                                             messageCell.textContent = `Fail: ${body}`;
-                                            button.style.display = "block";
                                         }
                                     })
                                     .catch(err => {
-                                        // Handle initial fetchAndLog error
+                                        button.style.display="block";
                                         spinner.style.display = "none";
                                         row.classList.add("failedRow");
                                         messageCell.textContent = `Fail: ${err.message}`;
-                                        button.style.display = "block";
                                     });
                             }
                         };
-
                         td.appendChild(button);
                         td.style.width = "50px";
                         td.style.padding = "4px";
