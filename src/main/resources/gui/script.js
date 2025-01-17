@@ -8,10 +8,13 @@ document.addEventListener("DOMContentLoaded", function () {
     const projectTitleElement = document.getElementById("project-title");
 
     fetch('/internal/guiLabel')
-        .then(response =>  {
-            const context = response.text()
-            projectTitleElement.innerText = "Salesforce Event Log transfer " + context
-    })
+        .then(response => response.text()) // Resolve the text from the response
+        .then(context => {
+            projectTitleElement.innerText = "Salesforce Event Log transfer " + context;
+        })
+        .catch(error => {
+            console.error("Error fetching context:", error);
+        });
     // Fetch metadata
     fetch('/internal/metadata')
         .then(response => {
