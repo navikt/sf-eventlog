@@ -30,6 +30,8 @@ import java.lang.Exception
 import java.lang.IllegalStateException
 import java.net.URLEncoder
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
 
 class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = DefaultAccessTokenHandler()) {
     private val log = KotlinLogging.logger { }
@@ -38,28 +40,40 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
 
     private val client = ApacheClient()
 
-    private val useCache = false
+    private val useCache = true
 
-    private var logFileCacheLastUpdated: LocalDate = LocalDate.MIN
+    private var logFileCacheLastUpdated: LocalDateTime = LocalDateTime.MIN
 
     private var logFileDataCache: Map<EventType, List<LogFileData>> = mapOf()
 
     fun clearCache() {
         logFileDataCache = mutableMapOf()
-        logFileCacheLastUpdated = LocalDate.MIN
+        logFileCacheLastUpdated = LocalDateTime.MIN
     }
 
     val logFileDataMap: Map<EventType, List<LogFileData>> get() {
-        if (useCache && logFileCacheLastUpdated == LocalDate.now()) {
+        if (useCache && logFileCacheLastUpdated.toLocalDate() == LocalDate.now() &&
+            isTimeInAllowedRange(logFileCacheLastUpdated.toLocalTime(), LocalTime.now())
+        ) {
             log.info { "Using log file dates cache" }
         } else {
             log.info { "${if (useCache) "Cache invalid : " else ""}Fetching log file dates" }
             logFileDataCache = EventType.values().associateWith { eventType ->
                 fetchLogFiles(eventType)
             }
-            logFileCacheLastUpdated = LocalDate.now()
+            logFileCacheLastUpdated = LocalDateTime.now()
         }
         return logFileDataCache
+    }
+
+    private fun isTimeInAllowedRange(cacheTime: LocalTime, currentTime: LocalTime): Boolean {
+        val morningCutoff = LocalTime.of(12, 30)
+        val afternoonStart = LocalTime.of(13, 30)
+
+        val bothMorning = cacheTime.isBefore(morningCutoff) && currentTime.isBefore(morningCutoff)
+        val bothAfternoon = cacheTime.isAfter(afternoonStart) && currentTime.isAfter(afternoonStart)
+
+        return bothMorning || bothAfternoon
     }
 
     fun isLogFileToFetch(date: LocalDate, eventType: EventType): Boolean =
