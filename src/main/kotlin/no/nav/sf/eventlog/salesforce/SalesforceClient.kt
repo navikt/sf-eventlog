@@ -104,7 +104,7 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                 TransferJob.goal = capturedEvents.size
                 log.info { "Will log ${capturedEvents.size} events of type $eventType for $date" }
 
-                var logCounter = 0 // To pause every 1000th record
+                var logCounter = 0 // To pause every 200th record
                 capturedEvents.forEach { event ->
                     // File("/tmp/latestEvent").writeText(event.toString())
                     val logMessage = if (eventType.messageField.isNotBlank()) {
@@ -128,7 +128,7 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
 
                     logCounter++
                     TransferJob.progress = logCounter
-                    if (logCounter % 1000 == 0) {
+                    if (logCounter % 200 == 0) {
                         log.info { "Logged $logCounter of ${capturedEvents.size} events" }
                         Thread.sleep(1000) // Pause for 1 second
                     }
