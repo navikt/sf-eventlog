@@ -4,7 +4,7 @@ import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import mu.KotlinLogging
 import no.nav.sf.eventlog.EventType
-import no.nav.sf.eventlog.config_CONTEXT
+import no.nav.sf.eventlog.application
 import no.nav.sf.eventlog.env
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
@@ -23,8 +23,6 @@ const val NAIS_DB_PREFIX = "NAIS_DATABASE_SF_EVENTLOG_SF_EVENTLOG_"
 
 object PostgresDatabase {
     private val log = KotlinLogging.logger { }
-
-    private val context = env(config_CONTEXT)
 
     private var logSyncStatusCacheLastUpdated: LocalDate = LocalDate.MIN
 
@@ -57,14 +55,14 @@ object PostgresDatabase {
         eventTypeCache[logSyncStatus.syncDate] = logSyncStatus
     }
 
-    private val dbUrl = env("$NAIS_DB_PREFIX${context}_URL")
-    private val dbHost = env("$NAIS_DB_PREFIX${context}_HOST")
-    private val dbPort = env("$NAIS_DB_PREFIX${context}_PORT")
-    private val dbName = env("$NAIS_DB_PREFIX${context}_DATABASE")
-    private val dbUsername = env("$NAIS_DB_PREFIX${context}_USERNAME")
-    private val dbPassword = env("$NAIS_DB_PREFIX${context}_PASSWORD")
+    private val dbUrl = env("$NAIS_DB_PREFIX${application.context}_URL")
+    private val dbHost = env("$NAIS_DB_PREFIX${application.context}_HOST")
+    private val dbPort = env("$NAIS_DB_PREFIX${application.context}_PORT")
+    private val dbName = env("$NAIS_DB_PREFIX${application.context}_DATABASE")
+    private val dbUsername = env("$NAIS_DB_PREFIX${application.context}_USERNAME")
+    private val dbPassword = env("$NAIS_DB_PREFIX${application.context}_PASSWORD")
 
-    private val dbJdbcUrl = env("$NAIS_DB_PREFIX${context}_JDBC_URL")
+    private val dbJdbcUrl = env("$NAIS_DB_PREFIX${application.context}_JDBC_URL")
 
     // Note: exposed Database connect prepares for connections but does not actually open connections
     // That is handled via transaction {} ensuring connections are opened and closed properly

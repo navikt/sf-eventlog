@@ -7,6 +7,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const projectTitleElement = document.getElementById("project-title");
 
+    fetch('/internal/guiLabel')
+        .then(response =>  {
+            const context = response.text()
+            projectTitleElement.innerText = "Salesforce Event Log transfer " + context
+    })
     // Fetch metadata
     fetch('/internal/metadata')
         .then(response => {
@@ -162,6 +167,11 @@ document.addEventListener("DOMContentLoaded", function () {
                                     })
                                     .then(({ status, body }) => {
                                         if (status === 200) {
+                                            const statusSpan = document.createElement('span');
+                                            statusSpan.textContent = "PROCESSING";
+                                            statusSpan.classList.add("PROCESSING");
+                                            statusCell.innerHTML = "";
+                                            statusCell.appendChild(statusSpan);
                                             // Start polling /internal/transferStatus
                                             const pollTransferStatus = () => {
                                                 fetch('/internal/transferStatus?date=' + logStatusRow["syncDate"] + '&eventType=' + logStatusRow["eventType"], { method: "GET" })
@@ -182,6 +192,7 @@ document.addEventListener("DOMContentLoaded", function () {
                                                         if (status === 202) {
                                                             // Update the messageCell with the response body
                                                             messageCell.textContent = body;
+                                                            messageCell.appendChild(spinner);
                                                             // Continue polling
                                                             setTimeout(pollTransferStatus, 1000);
                                                         } else if (status === 200) {

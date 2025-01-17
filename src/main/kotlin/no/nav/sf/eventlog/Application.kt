@@ -25,6 +25,8 @@ import java.time.LocalDate
 class Application {
     private val log = KotlinLogging.logger { }
 
+    val context = env(config_CONTEXT)
+
     val salesforceClient = SalesforceClient()
 
     val gson = configureGson()
@@ -41,6 +43,7 @@ class Application {
         "/internal/fetchAndLogYesterday" bind Method.GET to fetchAndLogYesterdayHandler,
         "/internal/test" bind Method.GET to { request -> log.info { "Test path is called with URL: ${request.uri}" }; Response(OK) },
         "/internal/gui" bind Method.GET to static(ResourceLoader.Classpath("gui")),
+        "/internal/guiLabel" bind Method.GET to { Response(OK).body(context) },
         "/internal/metadata" bind Method.GET to metaDataHandler,
         "/internal/clearCaches" bind Method.GET to {
             salesforceClient.clearCache()
