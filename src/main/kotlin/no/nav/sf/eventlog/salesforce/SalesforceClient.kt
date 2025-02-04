@@ -40,7 +40,7 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
 
     private val client = ApacheClient()
 
-    private val useCache = true
+    private val useCache = false
 
     private var logFileCacheLastUpdated: LocalDateTime = LocalDateTime.MIN
 

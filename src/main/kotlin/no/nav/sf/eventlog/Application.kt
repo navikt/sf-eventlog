@@ -87,7 +87,7 @@ class Application {
 
     private fun fetchAndLogHandlerCommon(date: LocalDate, eventTypeArg: String): Response {
         fun handleEventLogs(eventType: EventType): LogSyncStatus {
-            salesforceClient.logFileDataMap
+            // salesforceClient.logFileDataMap
             val eventLogsForDate = PostgresDatabase.logSyncStatusMap[eventType]?.get(date)
             return if (!salesforceClient.isLogFileToFetch(date, eventType)) {
                 log.info { "Skipping performing fetch and log on $eventType for $date since there is no such log file Salesforce" }
