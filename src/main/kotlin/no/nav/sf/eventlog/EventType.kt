@@ -31,10 +31,10 @@ enum class EventType(
 //    )
 }
 
-fun EventType.generateLoggingContext(eventData: JsonObject, excludeSensitive: Boolean): Map<String, String> {
+fun EventType.generateLoggingContext(eventData: JsonObject, excludeSensitive: Boolean, rowNumber: Int): Map<String, String> {
     return (this.insensitiveFields + if (excludeSensitive) listOf() else sensitiveFields)
         .associateWith { key ->
             val value = eventData[key]
             if (value.isJsonNull) "" else value.asString
-        }
+        } + ("ROW_NUMBER" to rowNumber.toString())
 }

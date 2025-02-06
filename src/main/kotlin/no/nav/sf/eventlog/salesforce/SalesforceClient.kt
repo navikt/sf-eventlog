@@ -114,9 +114,11 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                         if (local) event.toString() else "N/A"
                     }
 
+                    logCounter++
+
                     val nonSensitiveContext =
-                        eventType.generateLoggingContext(eventData = event, excludeSensitive = true)
-                    val fullContext = eventType.generateLoggingContext(eventData = event, excludeSensitive = false)
+                        eventType.generateLoggingContext(eventData = event, excludeSensitive = true, logCounter)
+                    val fullContext = eventType.generateLoggingContext(eventData = event, excludeSensitive = false, logCounter)
 
                     withLoggingContext(nonSensitiveContext) {
                         log.error(logMessage)
@@ -126,11 +128,10 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                         log.error(SECURE, logMessage)
                     }
 
-                    logCounter++
                     TransferJob.progress = logCounter
                     if (logCounter % 100 == 0) {
                         log.info { "Logged $logCounter of ${capturedEvents.size} events" }
-                        Thread.sleep(1000) // Pause for 1 second
+                        Thread.sleep(2000) // Pause for 2 seconds
                     }
                 }
                 log.info { "Finally logged $logCounter of ${capturedEvents.size} events" }
@@ -206,7 +207,7 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
     private fun dateRestrictionExtention(date: LocalDate) =
         " AND LogDate >= ${date}T00:00:00Z AND LogDate < ${date.plusDays(1)}T00:00:00Z"
 
-    private fun fetchLogFileContentAsJson(logFileUrl: String): List<JsonObject> {
+    fun fetchLogFileContentAsJson(logFileUrl: String): List<JsonObject> {
         val fullLogFileUrl = "${accessTokenHandler.instanceUrl}$logFileUrl"
         val request = Request(Method.GET, fullLogFileUrl)
             .header("Authorization", "Bearer ${accessTokenHandler.accessToken}")

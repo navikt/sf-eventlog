@@ -20,6 +20,7 @@ import org.http4k.routing.static
 import org.http4k.server.ApacheServer
 import org.http4k.server.Http4kServer
 import org.http4k.server.asServer
+import java.lang.IllegalStateException
 import java.time.LocalDate
 
 class Application {
@@ -42,6 +43,7 @@ class Application {
         "/internal/fetchAndLog" bind Method.GET to fetchAndLogHandler,
         "/internal/fetchAndLogYesterday" bind Method.GET to fetchAndLogYesterdayHandler,
         "/internal/test" bind Method.GET to { request -> log.info { "Test path is called with URL: ${request.uri}" }; Response(OK) },
+        "/internal/examine" bind Method.GET to examineHandler,
         "/internal/gui" bind Method.GET to static(ResourceLoader.Classpath("gui")),
         "/internal/guiLabel" bind Method.GET to { Response(OK).body(context) },
         "/internal/metadata" bind Method.GET to metaDataHandler,
@@ -51,7 +53,7 @@ class Application {
             Response(OK).body("Caches cleared")
         },
         "/internal/clearStatus" bind Method.GET to clearStatusHandler,
-        "/internal/transferStatus" bind Method.GET to TransferJob.statusHandler
+        "/internal/transferStatus" bind Method.GET to TransferJob.statusHandler,
     )
 
     fun start() {
@@ -63,6 +65,22 @@ class Application {
         }
         // if (cluster == "prod-gcp") PostgresDatabase.create()
         // salesforceClient.fetchLogFiles(EventType.ApexUnexpectedException)
+    }
+
+    private val examineHandler: HttpHandler = {
+        val date = LocalDate.parse(it.query("date")!!)
+        val eventTypeArg = it.query("eventType")!!
+        val eventType = EventType.valueOf(eventTypeArg)
+        val logFilesForDate = application.salesforceClient.logFileDataMap[eventType]?.filter { it.date == date } ?: listOf()
+        if (logFilesForDate.size > 1) throw IllegalStateException("Should never be more then one log file per log date")
+        if (logFilesForDate.isEmpty()) {
+            Response(OK).body("No log rows found of $eventTypeArg for $date")
+        } else {
+            logFilesForDate.first().let {
+                val capturedEvents = application.salesforceClient.fetchLogFileContentAsJson(it.file)
+                Response(OK).body("${capturedEvents.size} log rows found of $eventTypeArg for $date")
+            }
+        }
     }
 
     private val clearStatusHandler: HttpHandler = {

@@ -103,7 +103,7 @@ document.addEventListener("DOMContentLoaded", function () {
             // Add header row
             const headerRow = document.createElement("tr");
 
-            ["Logfile Date", "Status", "", "Message", "Last modified"].forEach(headerText => {
+            ["Logfile Date", "Status", "", "Message", "", "Last modified"].forEach(headerText => {
                 const th = document.createElement("th");
                 th.textContent = headerText;
                 headerRow.appendChild(th);
@@ -117,7 +117,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
             logStatusRows.forEach(logStatusRow => {
                 const row = document.createElement("tr");
-                ["syncDate", "status", "", "message", "lastModified"].forEach(key => {
+                ["syncDate", "status", "", "message", " ", "lastModified"].forEach(key => {
                     const td = document.createElement("td");
                     if (key === "status") {
                         const statusSpan = document.createElement('span');
@@ -260,6 +260,36 @@ document.addEventListener("DOMContentLoaded", function () {
                     } else if (key === "") {
                         td.textContent = ""
                         td.style.width = "50px";
+                    } else if (key === " "  && logStatusRow["status"] !== "NO_LOGFILE") {
+                        const button = document.createElement("button");
+                        button.textContent = "";
+                        button.classList.add("examine-button");
+                        button.onclick = () => {
+                            // Create and add the spinner
+                            const spinner = document.createElement("div");
+                            spinner.classList.add("small-spinner");
+                            spinner.style.display = "block";
+                            td.appendChild(spinner);
+                            button.style.display = "none";
+                            fetch('/internal/examine?date=' + logStatusRow["syncDate"] + '&eventType=' + logStatusRow["eventType"], {
+                                method: "GET",
+                            })
+                                .then(response => {
+                                        return response.text().then(text => ({
+                                            status: response.status,
+                                            body: text
+                                        }));
+                                    }
+                                )
+                                .then(({status, body}) => {
+                                    button.style.display = "block";
+                                    spinner.style.display = "none"
+                                    alert(body)
+                                })
+                        }
+                        td.appendChild(button);
+                        td.style.padding = "4px";
+                        td.style.width = "20px";
                     } else if (key === "lastModified" && (logStatusRow["status"] === "UNPROCESSED" || logStatusRow["status"] === "NO_LOGFILE")) {
                         td.textContent = ""
                     } else {

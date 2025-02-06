@@ -271,6 +271,66 @@ td:last-child, th:last-child {
 .fetch-button:hover {
     background-color: #b2e5df;
 }
+/*
+.examine-button {
+    background-color: #e0f5f3;
+    transition: background-color 0.3s ease;
+    color: #000;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    padding: 8px 12px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.examine-button:hover {
+    background-color: #b2e5df;
+}*/
+.examine-button {
+    position: relative;
+    width: 40px;  /* Adjust size */
+    height: 40px;
+    background-color: #e0f5f3;
+    border-radius: 50%; /* Make it circular */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #ccc;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.examine-button {
+    position: relative;
+    width: 20px;  /* Half the original size */
+    height: 20px;
+    background-color: #e0f5f3;
+    border-radius: 50%; /* Circular lens */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #ccc;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.examine-button:hover {
+    background-color: #b2e5df;
+    transform: scale(1.1); /* Slight zoom effect */
+}
+
+/* Handle of the magnifying glass */
+.examine-button::after {
+    content: "";
+    position: absolute;
+    width: 4px;  /* Scaled down */
+    height: 10px;
+    background-color: #ccc;
+    bottom: -8px; /* Adjusted for smaller size */
+    left: -3px; /* Keeps the handle positioned correctly */
+    transform: rotate(45deg);
+    border-radius: 2px;
+}
 
 .bulk-transfer-button {
     background-color: #ffcccc; /* Warning red color */
