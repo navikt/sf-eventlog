@@ -20,6 +20,8 @@ object Metrics {
 
     val fetchedLogs = registerLabelCounter("fetched_logs", "event_type")
 
+    val eventLogCounters: Map<EventType, Counter>
+
     // val apiCalls: Gauge = registerLabelGauge("api_calls", "target_app", "path")
 
     fun registerForwardedCallHistogram(name: String): Histogram {
@@ -42,6 +44,8 @@ object Metrics {
 
     init {
         DefaultExports.initialize()
+        eventLogCounters = EventType.values()
+            .associateWith { registerLabelCounter(it.name, *it.fieldsToUseAsMetricLabels.toTypedArray()) }
     }
 
     val metricsHttpHandler: HttpHandler = {

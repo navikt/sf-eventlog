@@ -105,6 +105,7 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                 log.info { "Will log ${capturedEvents.size} events of type $eventType for $date" }
 
                 var logCounter = 0 // To pause every 100th record
+                val capturedEventsSize = capturedEvents.size
                 capturedEvents.forEach { event ->
                     // File("/tmp/latestEvent").writeText(event.toString())
                     val logMessage = if (eventType.messageField.isNotBlank()) {
@@ -117,8 +118,8 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                     logCounter++
 
                     val nonSensitiveContext =
-                        eventType.generateLoggingContext(eventData = event, excludeSensitive = true, logCounter)
-                    val fullContext = eventType.generateLoggingContext(eventData = event, excludeSensitive = false, logCounter)
+                        eventType.generateLoggingContext(eventData = event, excludeSensitive = true, logCounter, capturedEventsSize)
+                    val fullContext = eventType.generateLoggingContext(eventData = event, excludeSensitive = false, logCounter, capturedEventsSize)
 
                     withLoggingContext(nonSensitiveContext) {
                         log.error(logMessage)
@@ -128,14 +129,21 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                         log.error(SECURE, logMessage)
                     }
 
+                    try {
+                        Metrics.eventLogCounters[eventType]!!
+                            .labels(*eventType.fieldsToUseAsMetricLabels.map { nonSensitiveContext[it] }.toTypedArray()).inc()
+                    } catch (e: Exception) {
+                        log.warn { "Failed to populate and increment a metric of eventType $eventType: ${e.message}" }
+                    }
+
                     TransferJob.progress = logCounter
                     if (logCounter % 100 == 0) {
-                        log.info { "Logged $logCounter of ${capturedEvents.size} events" }
+                        log.info { "Logged $logCounter of $capturedEventsSize events" }
                         Thread.sleep(2000) // Pause for 2 seconds
                     }
                 }
-                log.info { "Finally logged $logCounter of ${capturedEvents.size} events" }
-                val successState = createSuccessStatus(date, eventType, "Logged ${capturedEvents.size} events of type ${eventType.name} for $date")
+                log.info { "Finally logged $logCounter of $capturedEventsSize events" }
+                val successState = createSuccessStatus(date, eventType, "Logged $capturedEventsSize events of type ${eventType.name} for $date")
                 if (!local) {
                     PostgresDatabase.upsertLogSyncStatus(successState)
                     PostgresDatabase.updateCache(successState)

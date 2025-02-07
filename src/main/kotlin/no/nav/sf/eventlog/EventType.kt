@@ -5,7 +5,8 @@ import com.google.gson.JsonObject
 enum class EventType(
     val messageField: String,
     val insensitiveFields: List<String>,
-    val sensitiveFields: List<String>
+    val sensitiveFields: List<String>,
+    val fieldsToUseAsMetricLabels: List<String>
 ) {
     ApexUnexpectedException(
         messageField = "EXCEPTION_MESSAGE",
@@ -22,6 +23,11 @@ enum class EventType(
             "STACK_TRACE",
             "USER_ID",
             "USER_ID_DERIVED"
+        ),
+        fieldsToUseAsMetricLabels = listOf(
+            "EVENT_TYPE",
+            "EXCEPTION_TYPE",
+            "EXCEPTION_CATEGORY"
         )
     ),
 //    FlowExecution(
@@ -31,10 +37,11 @@ enum class EventType(
 //    )
 }
 
-fun EventType.generateLoggingContext(eventData: JsonObject, excludeSensitive: Boolean, rowNumber: Int): Map<String, String> {
+fun EventType.generateLoggingContext(eventData: JsonObject, excludeSensitive: Boolean, rowNumber: Int, batchSize: Int): Map<String, String> {
     return (this.insensitiveFields + if (excludeSensitive) listOf() else sensitiveFields)
         .associateWith { key ->
             val value = eventData[key]
             if (value.isJsonNull) "" else value.asString
-        } + ("ROW_NUMBER" to rowNumber.toString())
+        } + ("ROW_NUMBER" to rowNumber.toString()) +
+        ("BATCH_SIZE" to batchSize.toString())
 }
