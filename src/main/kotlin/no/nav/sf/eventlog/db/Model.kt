@@ -56,7 +56,7 @@ object LogSyncProgressTable : Table("log_sync_progress") {
     val lastModified = datetime("last_modified").defaultExpression(CurrentDateTime) // TIMESTAMP NOT NULL DEFAULT NOW()
 
     init {
-        uniqueIndex(LogSyncStatusTable.syncDate, LogSyncStatusTable.eventType) // Enforces unique combinations of syncDate and eventType
+        uniqueIndex(syncDate, eventType) // Enforces unique combinations of syncDate and eventType
     }
 }
 
