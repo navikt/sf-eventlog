@@ -118,8 +118,8 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                     logCounter++
 
                     val nonSensitiveContext =
-                        eventType.generateLoggingContext(eventData = event, excludeSensitive = true, logCounter, capturedEventsSize)
-                    val fullContext = eventType.generateLoggingContext(eventData = event, excludeSensitive = false, logCounter, capturedEventsSize)
+                        eventType.generateLoggingContext(eventData = event, excludeSensitive = true, logCounter, capturedEventsSize, eventType.fieldToUseAsEventTime)
+                    val fullContext = eventType.generateLoggingContext(eventData = event, excludeSensitive = false, logCounter, capturedEventsSize, eventType.fieldToUseAsEventTime)
 
                     withLoggingContext(nonSensitiveContext) {
                         log.error(logMessage)

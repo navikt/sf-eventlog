@@ -2,6 +2,7 @@ package no.nav.sf.eventlog.db
 
 import no.nav.sf.eventlog.EventType
 import no.nav.sf.eventlog.application
+import no.nav.sf.eventlog.db.LogSyncStatusTable.defaultExpression
 import no.nav.sf.eventlog.local
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.Table
@@ -37,6 +38,34 @@ fun ResultRow.toLogSyncStatus() = LogSyncStatus(
     status = this[LogSyncStatusTable.status],
     message = this[LogSyncStatusTable.message],
     lastModified = this[LogSyncStatusTable.lastModified]
+)
+
+data class LogSyncProgress(
+    val syncDate: LocalDate,
+    val eventType: String,
+    val progress: Int,
+    val goal: Int,
+    val lastModified: LocalDateTime
+)
+
+object LogSyncProgressTable : Table("log_sync_progress") {
+    val syncDate = date("sync_date")
+    val eventType = varchar("event_type", 36)
+    val progress = integer("progress")
+    val goal = integer("goal")
+    val lastModified = datetime("last_modified").defaultExpression(CurrentDateTime) // TIMESTAMP NOT NULL DEFAULT NOW()
+
+    init {
+        uniqueIndex(LogSyncStatusTable.syncDate, LogSyncStatusTable.eventType) // Enforces unique combinations of syncDate and eventType
+    }
+}
+
+fun ResultRow.toLogSyncProgress() = LogSyncProgress(
+    syncDate = this[LogSyncProgressTable.syncDate],
+    eventType = this[LogSyncProgressTable.eventType],
+    progress = this[LogSyncProgressTable.progress],
+    goal = this[LogSyncProgressTable.goal],
+    lastModified = this[LogSyncProgressTable.lastModified]
 )
 
 fun retrieveLogSyncStatusesAsMapMock(): MutableMap<EventType, MutableMap<LocalDate, LogSyncStatus>> {

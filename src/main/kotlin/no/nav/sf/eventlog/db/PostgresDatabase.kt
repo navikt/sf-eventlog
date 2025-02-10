@@ -85,7 +85,7 @@ object PostgresDatabase {
         transactionIsolation = "TRANSACTION_REPEATABLE_READ" // Isolation level that ensure the same snapshot of db during one transaction
     }
 
-    fun create(dropFirst: Boolean = false) {
+    fun createStatusTable(dropFirst: Boolean = false) {
         transaction {
             if (dropFirst) {
                 log.info { "Dropping table log_sync_status" }
@@ -97,6 +97,21 @@ object PostgresDatabase {
 
             log.info { "Creating table log_sync_status" }
             SchemaUtils.create(LogSyncStatusTable)
+        }
+    }
+
+    fun createProgressTable(dropFirst: Boolean = false) {
+        transaction {
+            if (dropFirst) {
+                log.info { "Dropping table log_sync_progress" }
+                val dropStatement =
+                    TransactionManager.current().connection.prepareStatement("DROP TABLE log_sync_progress", false)
+                dropStatement.executeUpdate()
+                log.info { "Drop performed" }
+            }
+
+            log.info { "Creating table log_sync_progress (${LogSyncProgressTable.tableName})" }
+            SchemaUtils.create(LogSyncProgressTable)
         }
     }
 

@@ -59,6 +59,7 @@ class Application {
     fun start() {
         log.info { "Starting in cluster $cluster" }
         apiServer().start()
+        PostgresDatabase.createProgressTable()
         if (local) {
             // salesforceClient.fetchLogFiles(EventType.FlowExecution)
             // salesforceClient.fetchAndLogEventLogs(EventType.FlowExecution, LocalDate.parse("2025-01-09"))

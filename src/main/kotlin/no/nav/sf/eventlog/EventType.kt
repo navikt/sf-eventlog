@@ -6,7 +6,8 @@ enum class EventType(
     val messageField: String,
     val insensitiveFields: List<String>,
     val sensitiveFields: List<String>,
-    val fieldsToUseAsMetricLabels: List<String>
+    val fieldsToUseAsMetricLabels: List<String>,
+    val fieldToUseAsEventTime: String
 ) {
     ApexUnexpectedException(
         messageField = "EXCEPTION_MESSAGE",
@@ -28,7 +29,8 @@ enum class EventType(
             "EVENT_TYPE",
             "EXCEPTION_TYPE",
             "EXCEPTION_CATEGORY"
-        )
+        ),
+        fieldToUseAsEventTime = "TIMESTAMP_DERIVED"
     ),
 //    FlowExecution(
 //        messageField = "",
@@ -37,11 +39,12 @@ enum class EventType(
 //    )
 }
 
-fun EventType.generateLoggingContext(eventData: JsonObject, excludeSensitive: Boolean, rowNumber: Int, batchSize: Int): Map<String, String> {
+fun EventType.generateLoggingContext(eventData: JsonObject, excludeSensitive: Boolean, rowNumber: Int, batchSize: Int, fieldToUseAsEventTime: String): Map<String, String> {
     return (this.insensitiveFields + if (excludeSensitive) listOf() else sensitiveFields)
         .associateWith { key ->
             val value = eventData[key]
             if (value.isJsonNull) "" else value.asString
         } + ("ROW_NUMBER" to rowNumber.toString()) +
-        ("BATCH_SIZE" to batchSize.toString())
+        ("BATCH_SIZE" to batchSize.toString()) +
+        ("event.start" to fieldToUseAsEventTime)
 }
