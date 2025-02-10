@@ -106,6 +106,9 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
 
                 var logCounter = 0 // To pause every 100th record
                 val capturedEventsSize = capturedEvents.size
+                if (!local) {
+                    PostgresDatabase.upsertLogSyncProgress(date, eventType.name, 0, capturedEventsSize)
+                }
                 capturedEvents.forEach { event ->
                     // File("/tmp/latestEvent").writeText(event.toString())
                     val logMessage = if (eventType.messageField.isNotBlank()) {
@@ -134,6 +137,10 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                             .labels(*eventType.fieldsToUseAsMetricLabels.map { nonSensitiveContext[it] }.toTypedArray()).inc()
                     } catch (e: Exception) {
                         log.warn { "Failed to populate and increment a metric of eventType $eventType: ${e.message}" }
+                    }
+
+                    if (!local) {
+                        PostgresDatabase.upsertLogSyncProgress(date, eventType.name, logCounter, capturedEventsSize)
                     }
 
                     TransferJob.progress = logCounter

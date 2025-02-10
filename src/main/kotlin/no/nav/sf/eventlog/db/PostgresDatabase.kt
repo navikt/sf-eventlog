@@ -138,6 +138,26 @@ object PostgresDatabase {
         }.resultedValues?.firstOrNull()?.toLogSyncStatus()
     }
 
+    // Upsert function for LogSyncProgress
+    fun upsertLogSyncProgress(
+        syncDate: LocalDate,
+        eventType: String,
+        progress: Int,
+        goal: Int
+    ): LogSyncProgress? {
+        return transaction {
+            LogSyncProgressTable.upsert(
+                keys = arrayOf(LogSyncProgressTable.syncDate, LogSyncProgressTable.eventType) // Perform update if there is a conflict here
+            ) {
+                it[LogSyncProgressTable.syncDate] = syncDate
+                it[LogSyncProgressTable.eventType] = eventType
+                it[LogSyncProgressTable.progress] = progress
+                it[LogSyncProgressTable.goal] = goal
+                it[LogSyncProgressTable.lastModified] = LocalDateTime.now()
+            }
+        }.resultedValues?.firstOrNull()?.toLogSyncProgress()
+    }
+
     // Function to delete rows with lastModified older than <thresholdDays> days
     fun deleteOldLogSyncStatuses(thresholdDays: Long = 100): Int {
         val thresholdDate = LocalDateTime.now().minusDays(thresholdDays)
@@ -160,6 +180,17 @@ object PostgresDatabase {
         return transaction {
             LogSyncStatusTable.selectAll()
                 .map { it.toLogSyncStatus() }
+                .groupBy { EventType.valueOf(it.eventType) }
+                .mapValues { entry ->
+                    entry.value.associateBy { it.syncDate }.toMutableMap()
+                }.toMutableMap()
+        }
+    }
+
+    fun retrieveLogSyncProgressesAsMap(): MutableMap<EventType, MutableMap<LocalDate, LogSyncProgress>> {
+        return transaction {
+            LogSyncProgressTable.selectAll()
+                .map { it.toLogSyncProgress() }
                 .groupBy { EventType.valueOf(it.eventType) }
                 .mapValues { entry ->
                     entry.value.associateBy { it.syncDate }.toMutableMap()
