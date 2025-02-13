@@ -46,5 +46,9 @@ fun EventType.generateLoggingContext(eventData: JsonObject, excludeSensitive: Bo
             if (value.isJsonNull) "" else value.asString
         } + ("ROW_NUMBER" to rowNumber.toString()) +
         ("BATCH_SIZE" to batchSize.toString()) +
-        ("event.start" to fieldToUseAsEventTime)
+        (
+            "event.start" to eventData[fieldToUseAsEventTime].let {
+                if (it.isJsonNull) "" else it.asString
+            }
+            )
 }
