@@ -60,7 +60,13 @@ class Application {
         log.info { "Starting in cluster $cluster" }
         apiServer().start()
         if (!local) {
-            log.info { "Result of progress map lookup: ${PostgresDatabase.retrieveLogSyncProgressesAsMap()}" }
+            val progressMap = PostgresDatabase.retrieveLogSyncProgressesAsMap()
+            log.info { "Result of progress map lookup: $progressMap" }
+            progressMap.forEach {
+                it.value.filter { it.value.progress != it.value.goal }.map { it.value }.forEach {
+                    log.info { "Should perform job pickup on ${it.eventType} for ${it.syncDate}, from ${it.progress} to ${it.goal}" }
+                }
+            }
         }
         // PostgresDatabase.createProgressTable()
         if (local) {
