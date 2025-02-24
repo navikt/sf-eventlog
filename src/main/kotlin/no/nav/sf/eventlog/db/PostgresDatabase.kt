@@ -197,4 +197,12 @@ object PostgresDatabase {
                 }.toMutableMap()
         }
     }
+
+    fun deleteLogSyncProgressRow(logSyncProgress: LogSyncProgress) {
+        transaction {
+            LogSyncProgressTable.deleteWhere {
+                (syncDate eq logSyncProgress.syncDate) and (eventType eq logSyncProgress.eventType)
+            }
+        }
+    }
 }

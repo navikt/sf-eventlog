@@ -66,6 +66,10 @@ class Application {
                 it.value.filter { it.value.progress != it.value.goal }.map { it.value }.forEach {
                     log.info { "Should perform job pickup on ${it.eventType} for ${it.syncDate}, from ${it.progress} to ${it.goal}" }
                 }
+                it.value.filter { it.value.progress == it.value.goal }.map { it.value }.forEach {
+                    log.info { "Should remove completed job from progress table ${it.eventType} ${it.syncDate}, ${it.goal} rows" }
+                    PostgresDatabase.deleteLogSyncProgressRow(it)
+                }
             }
         }
         // PostgresDatabase.createProgressTable()
