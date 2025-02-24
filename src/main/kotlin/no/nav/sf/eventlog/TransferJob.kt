@@ -24,7 +24,7 @@ object TransferJob {
         active = true
         status = null
         GlobalScope.launch {
-            runTransferJob(date, eventType)
+            runTransferJob(date, eventType, skipToRow)
         }
     }
 
