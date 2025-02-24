@@ -19,7 +19,7 @@ object TransferJob {
     var progress: Int = 0
     var goal: Int = 0
 
-    fun activateTransferJob(date: LocalDate, eventType: EventType) {
+    fun activateTransferJob(date: LocalDate, eventType: EventType, skipToRow: Int = 1) {
         if (active) throw IllegalStateException("Cannot activate new job transfer since one is already active")
         active = true
         status = null
@@ -28,11 +28,11 @@ object TransferJob {
         }
     }
 
-    fun runTransferJob(date: LocalDate, eventType: EventType) {
+    fun runTransferJob(date: LocalDate, eventType: EventType, skipToRow: Int = 1) {
         transferDate = date
         transferEventType = eventType
         status = try {
-            application.salesforceClient.fetchAndLogEventLogs(eventType, date)
+            application.salesforceClient.fetchAndLogEventLogs(eventType, date, skipToRow)
         } catch (e: Exception) {
             createFailureStatus(date, eventType, "Exception " + e.message + " : " + e.stackTraceToString())
         } finally {

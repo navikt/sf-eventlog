@@ -64,7 +64,12 @@ class Application {
             log.info { "Result of progress map lookup: $progressMap" }
             progressMap.forEach {
                 it.value.filter { it.value.progress != it.value.goal }.map { it.value }.forEach {
-                    log.info { "Should perform job pickup on ${it.eventType} for ${it.syncDate}, from ${it.progress} to ${it.goal}" }
+                    if (TransferJob.active) {
+                        log.info { "Will put off pickup job of ${it.eventType} for ${it.syncDate}, from ${it.progress} to ${it.goal} since already busy" }
+                    } else {
+                        log.info { "Staring job pickup on ${it.eventType} for ${it.syncDate}, from ${it.progress} to ${it.goal}" }
+                        TransferJob.activateTransferJob(it.syncDate, EventType.valueOf(it.eventType), it.progress)
+                    }
                 }
                 it.value.filter { it.value.progress == it.value.goal }.map { it.value }.forEach {
                     log.info { "Should remove completed job from progress table ${it.eventType} ${it.syncDate}, ${it.goal} rows" }

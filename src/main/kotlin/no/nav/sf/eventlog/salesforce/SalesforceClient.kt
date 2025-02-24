@@ -90,8 +90,8 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
         }
     }
 
-    fun fetchAndLogEventLogs(eventType: EventType, date: LocalDate): LogSyncStatus {
-        log.info { "Will fetch event logs for ${eventType.name} $date" }
+    fun fetchAndLogEventLogs(eventType: EventType, date: LocalDate, skipToRow: Int): LogSyncStatus {
+        log.info { "Will fetch event logs for ${eventType.name} $date" + (if (skipToRow > 1) " but skip to row $skipToRow" else "") }
         try {
             val logFilesForDate = logFileDataMap[eventType]?.filter { it.date == date } ?: listOf()
             if (logFilesForDate.size > 1) throw IllegalStateException("Should never be more then one log file per log date")
@@ -102,7 +102,11 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                 val capturedEvents = fetchLogFileContentAsJson(it.file)
 
                 TransferJob.goal = capturedEvents.size
-                log.info { "Will log ${capturedEvents.size} events of type $eventType for $date" }
+                if (skipToRow > 1) {
+                    log.info { "Will continue log ${capturedEvents.size} events from position $skipToRow of type $eventType for $date" }
+                } else {
+                    log.info { "Will log ${capturedEvents.size} events of type $eventType for $date" }
+                }
 
                 var logCounter = 0 // To pause every 100th record
                 val capturedEventsSize = capturedEvents.size
@@ -120,37 +124,58 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
 
                     logCounter++
 
-                    val nonSensitiveContext =
-                        eventType.generateLoggingContext(eventData = event, excludeSensitive = true, logCounter, capturedEventsSize, eventType.fieldToUseAsEventTime)
-                    val fullContext = eventType.generateLoggingContext(eventData = event, excludeSensitive = false, logCounter, capturedEventsSize, eventType.fieldToUseAsEventTime)
+                    if (logCounter >= skipToRow) {
+                        val nonSensitiveContext =
+                            eventType.generateLoggingContext(
+                                eventData = event,
+                                excludeSensitive = true,
+                                logCounter,
+                                capturedEventsSize,
+                                eventType.fieldToUseAsEventTime
+                            )
+                        val fullContext = eventType.generateLoggingContext(
+                            eventData = event,
+                            excludeSensitive = false,
+                            logCounter,
+                            capturedEventsSize,
+                            eventType.fieldToUseAsEventTime
+                        )
 
-                    withLoggingContext(nonSensitiveContext) {
-                        log.error(logMessage)
-                    }
+                        withLoggingContext(nonSensitiveContext) {
+                            log.error(logMessage)
+                        }
 
-                    withLoggingContext(fullContext) {
-                        log.error(SECURE, logMessage)
-                    }
+                        withLoggingContext(fullContext) {
+                            log.error(SECURE, logMessage)
+                        }
 
-                    try {
-                        Metrics.eventLogCounters[eventType]!!
-                            .labels(*eventType.fieldsToUseAsMetricLabels.map { nonSensitiveContext[it] }.toTypedArray()).inc()
-                    } catch (e: Exception) {
-                        log.warn { "Failed to populate and increment a metric of eventType $eventType: ${e.message}" }
-                    }
+                        try {
+                            Metrics.eventLogCounters[eventType]!!
+                                .labels(
+                                    *eventType.fieldsToUseAsMetricLabels.map { nonSensitiveContext[it] }
+                                        .toTypedArray()
+                                ).inc()
+                        } catch (e: Exception) {
+                            log.warn { "Failed to populate and increment a metric of eventType $eventType: ${e.message}" }
+                        }
 
-                    if (!local) {
-                        PostgresDatabase.upsertLogSyncProgress(date, eventType.name, logCounter, capturedEventsSize)
+                        if (!local) {
+                            PostgresDatabase.upsertLogSyncProgress(date, eventType.name, logCounter, capturedEventsSize)
+                        }
                     }
 
                     TransferJob.progress = logCounter
                     if (logCounter % 100 == 0) {
-                        log.info { "Logged $logCounter of $capturedEventsSize events" }
+                        if (logCounter >= skipToRow) {
+                            log.info { "Logged $logCounter of $capturedEventsSize events" + (if (skipToRow > 1) " of which skipped first $skipToRow in current run" else "") }
+                        } else {
+                            log.info { "Skipped $logCounter of $capturedEventsSize events" }
+                        }
                         Thread.sleep(2000) // Pause for 2 seconds
                     }
                 }
-                log.info { "Finally logged $logCounter of $capturedEventsSize events" }
-                val successState = createSuccessStatus(date, eventType, "Logged $capturedEventsSize events of type ${eventType.name} for $date")
+                log.info { "Finally logged $logCounter of $capturedEventsSize events" + (if (skipToRow > 1) " of which skipped first $skipToRow in current run" else "") }
+                val successState = createSuccessStatus(date, eventType, "Logged $capturedEventsSize events of type ${eventType.name} for $date " + (if (skipToRow > 1) " (pickup from $skipToRow in current run)" else ""))
                 if (!local) {
                     PostgresDatabase.upsertLogSyncStatus(successState)
                     PostgresDatabase.updateCache(successState)
