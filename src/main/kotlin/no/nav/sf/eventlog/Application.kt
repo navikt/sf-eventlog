@@ -67,7 +67,7 @@ class Application {
                     if (TransferJob.active) {
                         log.info { "Will put off pickup job of ${it.eventType} for ${it.syncDate}, from ${it.progress} to ${it.goal} since already busy" }
                     } else {
-                        log.info { "Staring job pickup on ${it.eventType} for ${it.syncDate}, from ${it.progress} to ${it.goal}" }
+                        log.info { "Starting job pickup on ${it.eventType} for ${it.syncDate}, from ${it.progress} to ${it.goal}" }
                         TransferJob.activateTransferJob(it.syncDate, EventType.valueOf(it.eventType), it.progress)
                     }
                 }
@@ -136,6 +136,7 @@ class Application {
                 log.info { "Skipping performing fetch and log on $eventType for $date since there is a job in progress" }
                 createUnprocessedStatus(date, eventType)
             } else {
+                Metrics.clearEventLogCounters()
                 TransferJob.activateTransferJob(date, eventType)
                 createProcessingStatus(date, eventType)
             }

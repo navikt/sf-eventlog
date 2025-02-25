@@ -3,7 +3,6 @@ package no.nav.sf.eventlog
 import io.prometheus.client.CollectorRegistry
 import io.prometheus.client.Counter
 import io.prometheus.client.Gauge
-import io.prometheus.client.Histogram
 import io.prometheus.client.Summary
 import io.prometheus.client.exporter.common.TextFormat
 import io.prometheus.client.hotspot.DefaultExports
@@ -22,14 +21,7 @@ object Metrics {
 
     val eventLogCounters: Map<EventType, Counter>
 
-    // val apiCalls: Gauge = registerLabelGauge("api_calls", "target_app", "path")
-
-    fun registerForwardedCallHistogram(name: String): Histogram {
-        return Histogram.build().name(name).help(name)
-            .labelNames("targetApp", "tokenType", "status")
-            .buckets(50.0, 100.0, 200.0, 300.0, 400.0, 500.0, 1000.0, 2000.0, 4000.0)
-            .register()
-    }
+    fun clearEventLogCounters() = eventLogCounters.values.forEach { it.clear() }
 
     fun registerSummary(name: String) = Summary.build().name(name).help(name).register()
 
