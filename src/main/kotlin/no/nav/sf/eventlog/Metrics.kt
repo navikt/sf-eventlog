@@ -21,7 +21,7 @@ object Metrics {
 
     val eventLogCounters: Map<EventType, Counter>
 
-    fun clearEventLogCounters() = eventLogCounters.values.forEach { it.clear() }
+    fun clearEventLogCounter(eventType: EventType) = eventLogCounters[eventType]?.clear()
 
     fun registerSummary(name: String) = Summary.build().name(name).help(name).register()
 

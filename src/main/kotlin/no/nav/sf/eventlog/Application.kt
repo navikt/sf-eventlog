@@ -136,7 +136,7 @@ class Application {
                 log.info { "Skipping performing fetch and log on $eventType for $date since there is a job in progress" }
                 createUnprocessedStatus(date, eventType)
             } else {
-                Metrics.clearEventLogCounters()
+                Metrics.clearEventLogCounter(eventType)
                 TransferJob.activateTransferJob(date, eventType)
                 createProcessingStatus(date, eventType)
             }
