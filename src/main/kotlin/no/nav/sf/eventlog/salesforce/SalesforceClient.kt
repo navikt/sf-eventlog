@@ -247,6 +247,9 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
     private fun dateRestrictionExtention(date: LocalDate) =
         " AND LogDate >= ${date}T00:00:00Z AND LogDate < ${date.plusDays(1)}T00:00:00Z"
 
+    private fun createdDateRestrictionExtention(date: LocalDate) =
+        " AND CreatedDate >= ${date}T00:00:00Z AND CreatedDate < ${date.plusDays(1)}T00:00:00Z"
+
     fun fetchLogFileContentAsJson(logFileUrl: String): List<JsonObject> {
         val fullLogFileUrl = "${accessTokenHandler.instanceUrl}$logFileUrl"
         val request = Request(Method.GET, fullLogFileUrl)
@@ -289,5 +292,46 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
         // File("/tmp/latestJson").writeText(Gson().toJson(result))
 
         return result
+    }
+
+    fun fetchApplicationLogsForDateFromRest(logDate: LocalDate): Pair<Int, Int> {
+        val soqlQuery = "SELECT CreatedDate, Log_Level__c FROM ApplicationLog__c WHERE Log_Level__c IN ('Critical', 'Error')" +
+            createdDateRestrictionExtention(logDate)
+        val encodedQuery = URLEncoder.encode(soqlQuery, "UTF-8")
+        var done = false
+        var nextRecordsUrl = "/services/data/$apiVersion/query?q=$encodedQuery"
+
+        // Variables to count Critical and Error logs
+        var criticalCount = 0
+        var errorCount = 0
+
+        while (!done) {
+            val request = Request(Method.GET, accessTokenHandler.instanceUrl + nextRecordsUrl)
+                .header("Authorization", "Bearer ${accessTokenHandler.accessToken}")
+                .header("Accept", "application/json")
+            val response = client(request)
+
+            if (response.status.successful) {
+                val obj = JsonParser.parseString(response.bodyString()).asJsonObject
+
+                val records = obj["records"].asJsonArray
+
+                // Count Critical and Error logs
+                for (record in records) {
+                    val logLevel = record.asJsonObject["Log_Level__c"].asString
+                    when (logLevel) {
+                        "Critical" -> criticalCount++
+                        "Error" -> errorCount++
+                    }
+                }
+
+                done = obj["done"].asBoolean
+                if (!done) nextRecordsUrl = obj["nextRecordsUrl"].asString
+            } else {
+                log.warn { "Failed to fetch application logs - response ${response.status.code}:${response.bodyString()}" }
+                done = true
+            }
+        }
+        return Pair(errorCount, criticalCount)
     }
 }
