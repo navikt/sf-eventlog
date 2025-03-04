@@ -334,4 +334,17 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
         }
         return Pair(errorCount, criticalCount)
     }
+
+    fun queryForAllEventTypes(): String {
+        val soqlQuery = "SELECT EventType FROM EventLogFile GROUP BY EventType"
+        val encodedQuery = URLEncoder.encode(soqlQuery, "UTF-8")
+
+        var nextRecordsUrl = "/services/data/$apiVersion/query?q=$encodedQuery"
+
+        val request = Request(Method.GET, accessTokenHandler.instanceUrl + nextRecordsUrl)
+            .header("Authorization", "Bearer ${accessTokenHandler.accessToken}")
+            .header("Accept", "application/json")
+        val response = client(request)
+        return response.bodyString()
+    }
 }
