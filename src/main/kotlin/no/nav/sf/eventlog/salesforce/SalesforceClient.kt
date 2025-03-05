@@ -345,6 +345,7 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
             .header("Authorization", "Bearer ${accessTokenHandler.accessToken}")
             .header("Accept", "application/json")
         val response = client(request)
+        File("/tmp/responseEventTypeQuery").writeText(response.toMessage())
         return response.bodyString()
     }
 }
