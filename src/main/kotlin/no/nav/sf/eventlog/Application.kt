@@ -97,8 +97,7 @@ class Application {
         } else {
             logFilesForDate.first().let {
                 val capturedEvents = application.salesforceClient.fetchLogFileContentAsJson(it.file)
-                // Response(OK).body("${capturedEvents.size} log rows found of $eventTypeArg for $date. Application log stats (error, critical): ${application.salesforceClient.fetchApplicationLogsForDateFromRest(date)}")
-                Response(OK).body("${capturedEvents.size} log rows found of $eventTypeArg for $date. Event type query: ${application.salesforceClient.queryForAllEventTypes()}")
+                Response(OK).body("${capturedEvents.size} log rows found of $eventTypeArg for $date. Application log stats (error, critical): ${application.salesforceClient.fetchApplicationLogsForDateFromRest(date)}")
             }
         }
     }
