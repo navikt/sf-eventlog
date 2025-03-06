@@ -311,6 +311,8 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                 .header("Accept", "application/json")
             val response = client(request)
 
+            File("/tmp/applogresp-$logDate").writeText(response.toMessage())
+
             if (response.status.successful) {
                 val obj = JsonParser.parseString(response.bodyString()).asJsonObject
 
