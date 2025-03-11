@@ -259,8 +259,11 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
         val startOfDayUtc = date.atStartOfDay(osloZone).withZoneSameInstant(ZoneOffset.UTC)
         val endOfDayUtc = date.plusDays(1).atStartOfDay(osloZone).withZoneSameInstant(ZoneOffset.UTC)
 
-        return " AND CreatedDate >= ${startOfDayUtc.toLocalDate()}T${startOfDayUtc.toLocalTime()}Z" +
-            " AND CreatedDate < ${endOfDayUtc.toLocalDate()}T${endOfDayUtc.toLocalTime()}Z"
+        // Format as Salesforce expects: 'yyyy-MM-dd HH:mm:ss'
+        val startOfDayStr = "${startOfDayUtc.toLocalDate()} ${startOfDayUtc.toLocalTime()}"
+        val endOfDayStr = "${endOfDayUtc.toLocalDate()} ${endOfDayUtc.toLocalTime()}"
+
+        return " AND CreatedDate >= ${startOfDayStr}Z AND CreatedDate < ${endOfDayStr}Z"
     }
 
     fun fetchLogFileContentAsJson(logFileUrl: String): List<JsonObject> {
@@ -324,6 +327,7 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                 .header("Accept", "application/json")
             val response = client(request)
 
+            File("/tmp/soqlQ").writeText(soqlQuery)
             File("/tmp/applogresp-$logDate").writeText(response.toMessage())
 
             if (response.status.successful) {
