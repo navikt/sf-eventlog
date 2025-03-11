@@ -32,6 +32,8 @@ import java.net.URLEncoder
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.ZoneId
+import java.time.ZoneOffset
 
 class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = DefaultAccessTokenHandler()) {
     private val log = KotlinLogging.logger { }
@@ -247,8 +249,19 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
     private fun dateRestrictionExtention(date: LocalDate) =
         " AND LogDate >= ${date}T00:00:00Z AND LogDate < ${date.plusDays(1)}T00:00:00Z"
 
-    private fun createdDateRestrictionExtention(date: LocalDate) =
-        " AND CreatedDate >= ${date}T00:00:00Z AND CreatedDate < ${date.plusDays(1)}T00:00:00Z"
+    // private fun createdDateRestrictionExtention(date: LocalDate) =
+    //    " AND CreatedDate >= ${date}T00:00:00Z AND CreatedDate < ${date.plusDays(1)}T00:00:00Z"
+
+    private fun createdDateRestrictionExtention(date: LocalDate): String {
+        val osloZone = ZoneId.of("Europe/Oslo")
+
+        // Convert start of the LocalDate in Oslo time to UTC
+        val startOfDayUtc = date.atStartOfDay(osloZone).withZoneSameInstant(ZoneOffset.UTC)
+        val endOfDayUtc = date.plusDays(1).atStartOfDay(osloZone).withZoneSameInstant(ZoneOffset.UTC)
+
+        return " AND CreatedDate >= ${startOfDayUtc.toLocalDate()}T${startOfDayUtc.toLocalTime()}Z" +
+            " AND CreatedDate < ${endOfDayUtc.toLocalDate()}T${endOfDayUtc.toLocalTime()}Z"
+    }
 
     fun fetchLogFileContentAsJson(logFileUrl: String): List<JsonObject> {
         val fullLogFileUrl = "${accessTokenHandler.instanceUrl}$logFileUrl"
@@ -295,7 +308,7 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
     }
 
     fun fetchApplicationLogsForDateFromRest(logDate: LocalDate): Pair<Int, Int> {
-        val soqlQuery = "SELECT CreatedDate, Log_Level__c, Application_Domain__c, Source_Class__c, UUID__c FROM Application_Log__c WHERE Log_Level__c IN ('Critical', 'Error')" +
+        val soqlQuery = "SELECT CreatedDate, Log_Level__c, Log_Messages__c, Application_Domain__c, Source_Class__c, UUID__c FROM Application_Log__c WHERE Log_Level__c IN ('Critical', 'Error')" +
             createdDateRestrictionExtention(logDate)
         val encodedQuery = URLEncoder.encode(soqlQuery, "UTF-8")
         var done = false
