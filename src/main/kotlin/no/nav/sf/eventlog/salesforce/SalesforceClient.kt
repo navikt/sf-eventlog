@@ -1,5 +1,6 @@
 package no.nav.sf.eventlog.salesforce
 
+import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import mu.KotlinLogging
@@ -320,6 +321,8 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
         var done = false
         var nextRecordsUrl = "/services/data/$apiVersion/query?q=$encodedQuery"
 
+        val result: MutableList<AppRecordPartial> = mutableListOf()
+
         // Variables to count Critical and Error logs
         var criticalCount = 0
         var errorCount = 0
@@ -341,6 +344,8 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                 // Count Critical and Error logs
                 for (record in records) {
                     val logLevel = record.asJsonObject["Log_Level__c"].asString
+                    val appRecordPartial = Gson().fromJson(record, AppRecordPartial::class.java)
+                    result.add(appRecordPartial)
                     when (logLevel) {
                         "Critical" -> criticalCount++
                         "Error" -> errorCount++
@@ -354,6 +359,7 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                 done = true
             }
         }
+        File("/tmp/appRecords").writeText(Gson().toJson(result))
         return Pair(errorCount, criticalCount)
     }
 

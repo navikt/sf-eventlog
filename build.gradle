@@ -57,6 +57,8 @@ dependencies {
 
     implementation "com.zaxxer:HikariCP:3.4.1"
 
+    implementation 'com.opencsv:opencsv:5.9'
+
     implementation "net.minidev:json-smart:2.4.9" //Desired transient json-smart to token-validation above
     implementation "com.nimbusds:nimbus-jose-jwt:9.37.2"
     implementation "org.apache.commons:commons-compress:1.26.0" //transient http4k-apache
