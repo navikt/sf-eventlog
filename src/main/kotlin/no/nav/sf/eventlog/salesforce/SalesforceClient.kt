@@ -315,7 +315,7 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
     }
 
     fun fetchApplicationLogsForDateFromRest(logDate: LocalDate): Pair<Int, Int> {
-        val soqlQuery = "SELECT CreatedDate, Log_Level__c, Application_Domain__c, Source_Class__c, UUID__c FROM Application_Log__c WHERE Log_Level__c IN ('Critical', 'Error')" +
+        val soqlQuery = "SELECT CreatedDate, Log_Level__c, Application_Domain__c, Source_Class__c, Source_Function__c, UUID__c FROM Application_Log__c WHERE Log_Level__c IN ('Critical', 'Error')" +
             createdDateRestrictionExtension(logDate)
         val encodedQuery = URLEncoder.encode(soqlQuery, "UTF-8")
         var done = false

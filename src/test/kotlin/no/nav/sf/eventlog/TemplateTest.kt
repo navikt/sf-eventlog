@@ -48,6 +48,7 @@ class TemplateTest {
         val Log_Level__c: String,
         val Application_Domain__c: String,
         val Source_Class__c: String,
+        val Source_Function__c: String,
         val UUID__c: String?
     )
 
@@ -64,13 +65,14 @@ class TemplateTest {
             val row = lines[i]
 
             val createdDateStr = row[7] // "x_TIMESTAMP_DERIVED"
-            val logLevel = row[10] // "x_Log_Level__c"
-            val applicationDomain = row[9] // "x_Application_Domain__c"
+            val logLevel = row[11] // "x_Log_Level__c"
+            val applicationDomain = row[10] // "x_Application_Domain__c"
             val sourceClass = row[8] // "x_Source_Class__c"
+            val sourceFunction = row[9]
             val uuid = row[6] // "x_UUID__c"
 
             val createdDate = LocalDateTime.parse(createdDateStr, formatter).minusHours(1)
-            records.add(Record(createdDate, logLevel, applicationDomain, sourceClass, uuid))
+            records.add(Record(createdDate, logLevel, applicationDomain, sourceClass, sourceFunction, uuid))
         }
         return records
     }
