@@ -1,0 +1,36 @@
+name: Deploy nais-job
+
+on: [workflow_dispatch]
+
+obs:
+  build:
+    permissions:
+      contents: "read"
+      id-token: "write"
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.docker-push.outputs.image }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - uses: nais/docker-build-push@v0
+        id: docker-push
+        with:
+          team: teamcrm
+          dockerfile: Dockerfile-job
+          identity_provider: ${{ secrets.NAIS_WORKLOAD_IDENTITY_PROVIDER }}
+          project_id: ${{ vars.NAIS_MANAGEMENT_PROJECT_ID }
+  deploy-dev:
+    name: Deploy job to dev-gcp
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: nais/deploy/actions/deploy@v2
+        env:
+          CLUSTER: dev-gcp
+          RESOURCE: eventlog-fetch-job.yaml
+          VAR: image=${{ needs.build.outputs.image }}

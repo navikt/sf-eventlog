@@ -4,7 +4,6 @@ import com.google.gson.GsonBuilder
 import com.google.gson.JsonDeserializationContext
 import com.google.gson.JsonDeserializer
 import com.google.gson.JsonElement
-import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.google.gson.JsonPrimitive
 import com.google.gson.JsonSerializationContext
@@ -26,7 +25,7 @@ class TemplateTest {
         override fun deserialize(json: JsonElement, typeOfT: Type, context: JsonDeserializationContext): LocalDateTime {
             val dateStr = json.asString
             return (
-                if (dateStr.endsWith("+0000")) {
+                if (dateStr.endsWith("+0000")) { // Salesforce Rest response
                     LocalDateTime.parse(dateStr, formatterOffset)
                 } else {
                     LocalDateTime.parse(dateStr, formatterZ)
@@ -57,19 +56,19 @@ class TemplateTest {
     fun parseCsvLogs(csvContent: String): List<Record> {
         val reader = CSVReader(StringReader(csvContent))
         val lines = reader.readAll()
-        val formatter = DateTimeFormatter.ofPattern("MMM d, yyyy @ HH:mm:ss.SSS") // CSV date format
+        val formatter = DateTimeFormatter.ofPattern("MMM d, yyyy @ HH:mm:ss.SSS") // Adjust if necessary
         val records = mutableListOf<Record>()
 
         // Skip the header row
         for (i in 1 until lines.size) {
             val row = lines[i]
 
-            val createdDateStr = row[7] // "x_TIMESTAMP_DERIVED"
-            val logLevel = row[11] // "x_Log_Level__c"
-            val applicationDomain = row[10] // "x_Application_Domain__c"
-            val sourceClass = row[8] // "x_Source_Class__c"
-            val sourceFunction = row[9]
-            val uuid = row[6] // "x_UUID__c"
+            val createdDateStr = row[3] // "x_TIMESTAMP_DERIVED"
+            val uuid = row[4] // "x_UUID__c"
+            val sourceClass = row[5] // "x_Source_Class__c"
+            val sourceFunction = row[6] // "x_Source_Function__c"
+            val applicationDomain = row[7] // "x_Application_Domain__c"
+            val logLevel = row[8] // "x_Log_Level__c"
 
             val createdDate = LocalDateTime.parse(createdDateStr, formatter).minusHours(1)
             records.add(Record(createdDate, logLevel, applicationDomain, sourceClass, sourceFunction, uuid))
@@ -87,13 +86,14 @@ class TemplateTest {
             .registerTypeAdapter(LocalDateTime::class.java, LocalDateTimeSerializer())
             .create()
 
-        val jsonLogAdeo = readResourceFile("/Scratch_logadeo9mars.json")
+        // val jsonLogAdeo = readResourceFile("/Scratch_logadeo9mars.json")
 
-        val csvLogAdeo = readResourceFile("/Scratch_logadeo9mars.csv")
+        val csvLogAdeo = readResourceFile("/Scratch_logadeo14mars.csv")
 
-        val jsonRecords = readResourceFile("/Scratch_records9mars.json")
+        val jsonRecords = readResourceFile("/Scratch_records14mars.json")
 
         // Parse JSON array
+        /*
         val jsonArray = JsonParser.parseString(jsonLogAdeo).asJsonArray
         val transformedList = jsonArray.mapNotNull { element ->
             val obj = element.asJsonObject
@@ -118,16 +118,16 @@ class TemplateTest {
 
         // Convert back to JSON
         val transformedJson = gson.toJson(transformedList) // GsonBuilder().setPrettyPrinting().create().toJson(transformedList)
-
+         */
         // Print or save the output
-        println(transformedJson)
+        // println(transformedJson)
 
         // val gson = Gson()
         // Parse JSON arrays
         // val logAdeoList: List<Record> = gson.fromJson(transformedJson, Array<Record>::class.java).toList()
         val logAdeoListFromCSV: List<Record> = parseCsvLogs(csvLogAdeo)
-        val secondJsonObj = JsonParser.parseString(jsonRecords).asJsonObject
-        val recordsList: List<Record> = gson.fromJson(secondJsonObj.getAsJsonArray("records"), Array<Record>::class.java).toList()
+        val secondJsonArray = JsonParser.parseString(jsonRecords).asJsonArray
+        val recordsList: List<Record> = gson.fromJson(secondJsonArray, Array<Record>::class.java).toList()
 
         // Match function
         fun recordsMatch(r1: Record, r2: Record): Boolean {
@@ -193,6 +193,17 @@ class TemplateTest {
         if (mismatchesList2.isNotEmpty()) {
             println("\nMismatched Records:")
             mismatchesList2.forEach { println(gson.toJson(it)) }
+        }
+
+        val groupedRecords = mismatchesList2.groupBy {
+            Triple(it.Application_Domain__c, it.Source_Class__c, it.Source_Function__c)
+        }
+
+        println("Total logs not reported via event: " + mismatchesList2.size + " of total " + recordsList.size)
+// Print statistics for each group
+        groupedRecords.forEach { (key, list) ->
+            val (domain, sourceClass, sourceFunction) = key
+            println("Application_Domain__c: $domain, Source_Class__c: $sourceClass, Source_Function__c: $sourceFunction - Count: ${list.size}")
         }
         println("end ")
     }
