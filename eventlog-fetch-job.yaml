@@ -7,7 +7,7 @@ metadata:
     team: teamcrm
 spec:
   schedule: "30 12 * * *"  # This will run the job every day at 12:00 PM UTC (1:00 PM CET)
-  image: cgr.dev/chainguard/curl:latest
+  image: "{{ image }}" # cgr.dev/chainguard/curl:latest
   accessPolicy:
     outbound:
       rules:
