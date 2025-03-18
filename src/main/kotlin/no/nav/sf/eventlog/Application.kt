@@ -44,6 +44,7 @@ class Application {
         "/internal/fetchAndLogYesterday" bind Method.GET to fetchAndLogYesterdayHandler,
         "/internal/test" bind Method.GET to { request -> log.info { "Test path is called with URL: ${request.uri}" }; Response(OK) },
         "/internal/examine" bind Method.GET to examineHandler,
+        "/internal/applogfetch" bind Method.GET to appLogFetchHandler,
         "/internal/gui" bind Method.GET to static(ResourceLoader.Classpath("gui")),
         "/internal/guiLabel" bind Method.GET to { Response(OK).body(context) },
         "/internal/metadata" bind Method.GET to metaDataHandler,
@@ -100,6 +101,11 @@ class Application {
                 Response(OK).body("${capturedEvents.size} log rows found of $eventTypeArg for $date. Application log stats (error, critical): ${application.salesforceClient.fetchApplicationLogsForDateFromRest(date)}")
             }
         }
+    }
+
+    private val appLogFetchHandler: HttpHandler = {
+        val date = LocalDate.parse(it.query("date")!!)
+        Response(OK).body("Application log stats for $date (error, critical): ${application.salesforceClient.fetchApplicationLogsForDateFromRest(date)}")
     }
 
     private val clearStatusHandler: HttpHandler = {

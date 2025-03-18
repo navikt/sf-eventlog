@@ -5,6 +5,7 @@ on:
     paths-ignore:
       - README.md
       - Dockerfile-job
+      - .nais/eventlog-fetch-job.yaml
       - .github/workflows/deploy-job.yml
   pull_request:
 
