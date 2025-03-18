@@ -2,7 +2,7 @@ name: Deploy nais-job
 
 on: [workflow_dispatch]
 
-obs:
+jobs:
   build:
     permissions:
       contents: "read"
