@@ -19,7 +19,7 @@ jobs:
           team: teamcrm
           dockerfile: Dockerfile-job
           identity_provider: ${{ secrets.NAIS_WORKLOAD_IDENTITY_PROVIDER }}
-          project_id: ${{ vars.NAIS_MANAGEMENT_PROJECT_ID }
+          project_id: ${{ vars.NAIS_MANAGEMENT_PROJECT_ID }}
   deploy-dev:
     name: Deploy job to dev-gcp
     needs: build
