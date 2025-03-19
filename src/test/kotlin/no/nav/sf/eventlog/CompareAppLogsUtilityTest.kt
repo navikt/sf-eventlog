@@ -13,18 +13,20 @@ import java.time.format.DateTimeFormatter
  * CompareAppLogsUtilityTest
  *
  * How to perform manual healthcheck:
- * Place response body from SOQL (from pod file /tmp/applogresp-<logDate> when visiting "/internal/applogfetch?date=<logDate>")
+ * Place response body from SOQL (from pod file /tmp/appRecords-<logDate> when visiting "/internal/applogfetch?date=<logDate>")
  * in a file in resource folder that you point to with JSON_ARRAY_FROM_SOQL below
  *
  * Export the logs from adeo secure logs for the same day to a csv, point to it with CSV_FROM_ADEO
+ * Use for instance
+ * https://logs.adeo.no/app/discover#/?_g=(filters:!(),refreshInterval:(pause:!t,value:60000),time:(from:'2025-03-16T23:00:00.000Z',to:'2025-03-17T23:00:00.000Z'))&_a=(columns:!(message,envclass,x_Log_Level__c,x_TIMESTAMP_DERIVED,x_Application_Domain__c,x_Source_Class__c,x_Source_Function__c,x_UUID__c),dataSource:(dataViewId:'tjenestekall-*',type:dataView),filters:!(),hideChart:!f,interval:auto,query:(language:kuery,query:'application:%20sf-pubsub-application-event%20AND%20envclass:%20p'),sort:!(!('@timestamp',desc)))
+ * and adjust date
  *
- * Uncomment @Test below and run
- * Do not forget to disable after use
+ * Uncomment @Test below and run, disable after use
  */
 class CompareAppLogsUtilityTest {
 
-    val CSV_FROM_ADEO = "/Scratch_logadeo14mars.csv"
-    val JSON_ARRAY_FROM_SOQL = "/Scratch_records14mars.json"
+    val CSV_FROM_ADEO = "/Scratch_logadeo17mars.csv"
+    val JSON_ARRAY_FROM_SOQL = "/Scratch_records17mars.json"
 
     // @Test
     fun `add test cases`() {
@@ -55,7 +57,7 @@ class CompareAppLogsUtilityTest {
                 compareNullAsEmpty(r1.Application_Domain__c) == compareNullAsEmpty(r2.Application_Domain__c) &&
                 compareNullAsEmpty(r1.Source_Class__c) == compareNullAsEmpty(r2.Source_Class__c) &&
                 compareNullAsEmpty(r1.UUID__c) == compareNullAsEmpty(r2.UUID__c) &&
-                timeDiff <= 60 // Within 1 minute
+                timeDiff <= 120 // Within 2 minutes
         }
 
         // Compare records
@@ -112,6 +114,8 @@ class CompareAppLogsUtilityTest {
             Triple(it.Application_Domain__c, it.Source_Class__c, it.Source_Function__c)
         }
 
+        println("Reference value: ${mismatchesList.size} (should be 0)")
+
         println("Total logs not reported via event: " + mismatchesList2.size + " of total " + recordsList.size)
         // Print statistics for each group
         groupedRecords.forEach { (key, list) ->
@@ -124,6 +128,10 @@ class CompareAppLogsUtilityTest {
 fun parseCsvLogs(csvContent: String): List<AppRecordPartialLocalDate> {
     val reader = CSVReader(StringReader(csvContent))
     val lines = reader.readAll()
+
+    val header = lines[0] // First row is the header
+    val columnIndexMap = header.withIndex().associate { it.value to it.index } // Map column names to indices
+
     val formatter = DateTimeFormatter.ofPattern("MMM d, yyyy @ HH:mm:ss.SSS") // Adjust if necessary
     val records = mutableListOf<AppRecordPartialLocalDate>()
 
@@ -131,12 +139,12 @@ fun parseCsvLogs(csvContent: String): List<AppRecordPartialLocalDate> {
     for (i in 1 until lines.size) {
         val row = lines[i]
 
-        val createdDateStr = row[3] // "x_TIMESTAMP_DERIVED"
-        val uuid = row[4] // "x_UUID__c"
-        val sourceClass = row[5] // "x_Source_Class__c"
-        val sourceFunction = row[6] // "x_Source_Function__c"
-        val applicationDomain = row[7] // "x_Application_Domain__c"
-        val logLevel = row[8] // "x_Log_Level__c"
+        val createdDateStr = row[columnIndexMap["x_TIMESTAMP_DERIVED"] ?: continue]
+        val uuid = row[columnIndexMap["x_UUID__c"] ?: continue]
+        val sourceClass = row[columnIndexMap["x_Source_Class__c"] ?: continue]
+        val sourceFunction = row[columnIndexMap["x_Source_Function__c"] ?: continue]
+        val applicationDomain = row[columnIndexMap["x_Application_Domain__c"] ?: continue]
+        val logLevel = row[columnIndexMap["x_Log_Level__c"] ?: continue]
 
         val createdDate = LocalDateTime.parse(createdDateStr, formatter)
         records.add(AppRecordPartialLocalDate(createdDate, logLevel, applicationDomain, sourceClass, sourceFunction, uuid))

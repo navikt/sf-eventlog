@@ -34,9 +34,55 @@ object Metrics {
     fun registerLabelCounter(name: String, vararg labels: String) =
         Counter.build().name(name).help(name).labelNames(*labels).register()
 
+    /**
+     * Mask common path variables to avoid separate counts for paths with varying segments.
+     */
+    fun mask(path: String): String =
+        path.replace(Regex("/\\d+"), "/{id}")
+            .replace(Regex("/[A-Z]\\d{4,}"), "/{ident}")
+            .replace(Regex("/[^/]+\\.(xml|pdf)$"), "/{filename}")
+            .replace(Regex("/[A-Z]{3}(?=/|$)"), "/{code}")
+
+    fun normalizeUrl(url: String): String {
+        val urlWithoutQuery = url.substringBefore("?") // Remove query parameters
+
+        return if (urlWithoutQuery.startsWith("http")) {
+            val uri = java.net.URI(urlWithoutQuery)
+            if (uri.host == "hooks.slack.com") {
+                uri.host
+            } else {
+                "${uri.host}${mask(uri.path)}"
+            }
+        } else if (urlWithoutQuery.startsWith("callout:")) {
+            "callout:" + mask(urlWithoutQuery.removePrefix("callout:"))
+        } else {
+            urlWithoutQuery
+        }
+    }
+
+    fun Long.toTimeLabel(): String = when {
+        this < 10 -> "< 10 ms"
+        this < 50 -> "< 50 ms"
+        this < 100 -> "< 100 ms"
+        this < 500 -> "< 500 ms"
+        this < 1000 -> "< 1s"
+        this < 5000 -> "< 5s"
+        this < 10000 -> "< 10s"
+        else -> "> 10s"
+    }
+
+    fun Long.toSizeLabel(): String = when {
+        this < 1024 -> "< 1 KB"
+        this < 10 * 1024 -> "< 10 KB"
+        this < 100 * 1024 -> "< 100 KB"
+        this < 1024 * 1024 -> "< 1 MB"
+        this < 10 * 1024 * 1024 -> "< 10 MB"
+        else -> "> 10 MB"
+    }
+
     init {
         DefaultExports.initialize()
-        eventLogCounters = EventType.values()
+        eventLogCounters = EventType.values().filter { it.fieldsToUseAsMetricLabels.isNotEmpty() }
             .associateWith { registerLabelCounter(it.name, *it.fieldsToUseAsMetricLabels.toTypedArray()) }
     }
 

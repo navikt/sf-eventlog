@@ -80,8 +80,9 @@ class Application {
         }
         // PostgresDatabase.createProgressTable()
         if (local) {
-            // salesforceClient.fetchLogFiles(EventType.FlowExecution)
-            // salesforceClient.fetchAndLogEventLogs(EventType.FlowExecution, LocalDate.parse("2025-01-09"))
+            // salesforceClient.fetchLogFiles(EventType.ApexCallout)
+            // Normally run via the async TransferJob:
+            // salesforceClient.fetchAndProcessEventLogs(EventType.ApexCallout, LocalDate.parse("2025-01-09"), 0)
         }
         // if (cluster == "prod-gcp") PostgresDatabase.create()
         // salesforceClient.fetchLogFiles(EventType.ApexUnexpectedException)
@@ -131,7 +132,11 @@ class Application {
     private fun fetchAndLogHandlerCommon(date: LocalDate, eventTypeArg: String): Response {
         fun handleEventLogs(eventType: EventType): LogSyncStatus {
             // salesforceClient.logFileDataMap
-            val eventLogsForDate = PostgresDatabase.logSyncStatusMap[eventType]?.get(date)
+            val eventLogsForDate = if (local) {
+                null
+            } else {
+                PostgresDatabase.logSyncStatusMap[eventType]?.get(date)
+            }
             return if (!salesforceClient.isLogFileToFetch(date, eventType)) {
                 log.info { "Skipping performing fetch and log on $eventType for $date since there is no such log file Salesforce" }
                 createNoLogfileStatus(date, eventType)
@@ -152,7 +157,7 @@ class Application {
             val result = EventType.values().map {
                 var status = handleEventLogs(it)
                 if (status.status == "PROCESSING") {
-                    while (TransferJob.pollStatus(date, it).status == Status.CONTINUE) {
+                    while (TransferJob.pollStatus(date, it).status == Status.ACCEPTED) {
                         log.info { "Transfer ALL in progress, sleep 30 s" }
                         Thread.sleep(30000)
                     }

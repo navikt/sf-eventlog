@@ -7,6 +7,8 @@ import mu.KotlinLogging
 import mu.withLoggingContext
 import no.nav.sf.eventlog.EventType
 import no.nav.sf.eventlog.Metrics
+import no.nav.sf.eventlog.Metrics.toSizeLabel
+import no.nav.sf.eventlog.Metrics.toTimeLabel
 import no.nav.sf.eventlog.SECURE
 import no.nav.sf.eventlog.TransferJob
 import no.nav.sf.eventlog.config_SALESFORCE_API_VERSION
@@ -16,6 +18,7 @@ import no.nav.sf.eventlog.db.createFailureStatus
 import no.nav.sf.eventlog.db.createNoLogfileStatus
 import no.nav.sf.eventlog.db.createSuccessStatus
 import no.nav.sf.eventlog.env
+import no.nav.sf.eventlog.fieldAsString
 import no.nav.sf.eventlog.generateLoggingContext
 import no.nav.sf.eventlog.local
 import no.nav.sf.eventlog.token.AccessTokenHandler
@@ -83,18 +86,7 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
     fun isLogFileToFetch(date: LocalDate, eventType: EventType): Boolean =
         logFileDataMap[eventType]?.any { it.date == date } == true
 
-    fun getLogFileDatesMock(): Map<EventType, List<LogFileData>> {
-        val eventTypes = listOf(EventType.ApexUnexpectedException/*, EventType.FlowExecution*/)
-
-        return eventTypes.associateWith {
-            List(10) {
-                LogFileData(date = LocalDate.now().minusDays((1..30).random().toLong()), file = "") // Simulate 10 random dates for each event type
-                // Random date in the last 30 days
-            }
-        }
-    }
-
-    fun fetchAndLogEventLogs(eventType: EventType, date: LocalDate, skipToRow: Int): LogSyncStatus {
+    fun fetchAndProcessEventLogs(eventType: EventType, date: LocalDate, skipToRow: Int): LogSyncStatus {
         log.info { "Will fetch event logs for ${eventType.name} $date" + (if (skipToRow > 1) " but skip to row $skipToRow" else "") }
         try {
             val logFilesForDate = logFileDataMap[eventType]?.filter { it.date == date } ?: listOf()
@@ -107,9 +99,9 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
 
                 TransferJob.goal = capturedEvents.size
                 if (skipToRow > 1) {
-                    log.info { "Will continue log ${capturedEvents.size} events from position $skipToRow of type $eventType for $date" }
+                    log.info { "Will continue process ${capturedEvents.size} events from position $skipToRow of type $eventType for $date" }
                 } else {
-                    log.info { "Will log ${capturedEvents.size} events of type $eventType for $date" }
+                    log.info { "Will process ${capturedEvents.size} events of type $eventType for $date" }
                 }
 
                 var logCounter = 0 // To pause every 100th record
@@ -129,38 +121,50 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                     logCounter++
 
                     if (logCounter >= skipToRow) {
-                        val nonSensitiveContext =
-                            eventType.generateLoggingContext(
+                        if (eventType.messageField.isNotEmpty()) {
+                            val nonSensitiveContext =
+                                eventType.generateLoggingContext(
+                                    eventData = event,
+                                    excludeSensitive = true,
+                                    logCounter,
+                                    capturedEventsSize
+                                )
+                            val fullContext = eventType.generateLoggingContext(
                                 eventData = event,
-                                excludeSensitive = true,
+                                excludeSensitive = false,
                                 logCounter,
-                                capturedEventsSize,
-                                eventType.fieldToUseAsEventTime
+                                capturedEventsSize
                             )
-                        val fullContext = eventType.generateLoggingContext(
-                            eventData = event,
-                            excludeSensitive = false,
-                            logCounter,
-                            capturedEventsSize,
-                            eventType.fieldToUseAsEventTime
-                        )
 
-                        withLoggingContext(nonSensitiveContext) {
-                            log.error(logMessage)
+                            withLoggingContext(nonSensitiveContext) {
+                                log.error(logMessage)
+                            }
+
+                            withLoggingContext(fullContext) {
+                                log.error(SECURE, logMessage)
+                            }
                         }
 
-                        withLoggingContext(fullContext) {
-                            log.error(SECURE, logMessage)
-                        }
-
-                        try {
-                            Metrics.eventLogCounters[eventType]!!
-                                .labels(
-                                    *eventType.fieldsToUseAsMetricLabels.map { nonSensitiveContext[it] }
-                                        .toTypedArray()
-                                ).inc()
-                        } catch (e: Exception) {
-                            log.warn { "Failed to populate and increment a metric of eventType $eventType: ${e.message}" }
+                        if (eventType.fieldsToUseAsMetricLabels.isNotEmpty()) {
+                            try {
+                                Metrics.eventLogCounters[eventType]!!
+                                    .labels(
+                                        *eventType.fieldsToUseAsMetricLabels.map {
+                                            val strValue = event.fieldAsString(it)
+                                            if (eventType.metricsFieldsToNormalizeURL.contains(it)) {
+                                                Metrics.normalizeUrl(strValue)
+                                            } else if (eventType.metricsFieldsToTimeBucket.contains(it)) {
+                                                strValue.toLong().toTimeLabel()
+                                            } else if (eventType.metricsFieldsToSizeBucket.contains(it)) {
+                                                strValue.toLong().toSizeLabel()
+                                            } else {
+                                                event.fieldAsString(it)
+                                            }
+                                        }.toTypedArray()
+                                    ).inc()
+                            } catch (e: Exception) {
+                                log.warn { "Failed to populate and increment a metric of eventType $eventType: ${e.message}" }
+                            }
                         }
 
                         if (!local) {
@@ -169,17 +173,19 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                     }
 
                     TransferJob.progress = logCounter
-                    if (logCounter % 100 == 0) {
-                        if (logCounter >= skipToRow) {
-                            log.info { "Logged $logCounter of $capturedEventsSize events" + (if (skipToRow > 1) " of which skipped first $skipToRow in current run" else "") }
-                        } else {
-                            log.info { "Skipped $logCounter of $capturedEventsSize events" }
+                    if (eventType.messageField.isNotEmpty()) {
+                        if (logCounter % 100 == 0) {
+                            if (logCounter >= skipToRow) {
+                                log.info { "Processed $logCounter of $capturedEventsSize events" + (if (skipToRow > 1) " of which skipped first $skipToRow in current run" else "") }
+                            } else {
+                                log.info { "Skipped $logCounter of $capturedEventsSize events" }
+                            }
+                            if (local) Thread.sleep(20) else Thread.sleep(2000) // Pause for 2 seconds
                         }
-                        Thread.sleep(2000) // Pause for 2 seconds
                     }
                 }
-                log.info { "Finally logged $logCounter of $capturedEventsSize events" + (if (skipToRow > 1) " of which skipped first $skipToRow in current run" else "") }
-                val successState = createSuccessStatus(date, eventType, "Logged $capturedEventsSize events of type ${eventType.name} for $date " + (if (skipToRow > 1) " (pickup from $skipToRow in current run)" else ""))
+                log.info { "Finally processed $logCounter of $capturedEventsSize events" + (if (skipToRow > 1) " of which skipped first $skipToRow in current run" else "") }
+                val successState = createSuccessStatus(date, eventType, "Processed $capturedEventsSize events of type ${eventType.name} for $date " + (if (skipToRow > 1) " (pickup from $skipToRow in current run)" else ""))
                 if (!local) {
                     PostgresDatabase.upsertLogSyncStatus(successState)
                     PostgresDatabase.updateCache(successState)
@@ -314,6 +320,7 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
         return result
     }
 
+    // Used for health check of Application log
     fun fetchApplicationLogsForDateFromRest(logDate: LocalDate): Pair<Int, Int> {
         val soqlQuery = "SELECT CreatedDate, Log_Level__c, Application_Domain__c, Source_Class__c, Source_Function__c, UUID__c FROM Application_Log__c WHERE Log_Level__c IN ('Critical', 'Error')" +
             createdDateRestrictionExtension(logDate)
@@ -359,7 +366,7 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                 done = true
             }
         }
-        File("/tmp/appRecords").writeText(Gson().toJson(result))
+        File("/tmp/appRecords-$logDate").writeText(Gson().toJson(result))
         return Pair(errorCount, criticalCount)
     }
 
