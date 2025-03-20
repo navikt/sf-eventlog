@@ -286,6 +286,8 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
 
         val response = client(request)
 
+        File("/tmp/responseFromLogFileFetch").writeText(response.toMessage())
+
         return if (response.status.successful) {
             parseCSVToJsonObjects(response.bodyString())
         } else {
