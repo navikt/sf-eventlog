@@ -11,6 +11,7 @@ import no.nav.sf.eventlog.Metrics.toSizeLabel
 import no.nav.sf.eventlog.Metrics.toTimeLabel
 import no.nav.sf.eventlog.SECURE
 import no.nav.sf.eventlog.TransferJob
+import no.nav.sf.eventlog.application
 import no.nav.sf.eventlog.config_SALESFORCE_API_VERSION
 import no.nav.sf.eventlog.db.LogSyncStatus
 import no.nav.sf.eventlog.db.PostgresDatabase
@@ -114,14 +115,15 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                     val logMessage = if (eventType.messageField.isNotBlank()) {
                         event[eventType.messageField]?.asString ?: "N/A"
                     } else {
-                        // Locally - if no message field defined we want to see full event object to examine model
-                        if (local) event.toString() else "N/A"
+                        // Locally - if no message field defined nor any metrics labels
+                        // we want to see full event object to examine model of new event type
+                        if (local && eventType.fieldsToUseAsMetricLabels.isEmpty()) event.toString() else "N/A"
                     }
 
                     logCounter++
 
                     if (logCounter >= skipToRow) {
-                        if (eventType.messageField.isNotEmpty()) {
+                        if (eventType.messageField.isNotEmpty() || (local && eventType.fieldsToUseAsMetricLabels.isEmpty())) {
                             val nonSensitiveContext =
                                 eventType.generateLoggingContext(
                                     eventData = event,
@@ -294,6 +296,9 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
 
     private fun parseCSVToJsonObjects(csvData: String): List<JsonObject> {
         // File("/tmp/latestCsvData").writeText(csvData)
+        application.debugValue = csvData.length
+        log.info { "Size of csv data ${csvData.length}" }
+        return listOf()
         val result: MutableList<JsonObject> = mutableListOf()
 
         val reader = StringReader(csvData)

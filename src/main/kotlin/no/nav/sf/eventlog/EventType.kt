@@ -13,7 +13,12 @@ enum class EventType(
     val metricsFieldsToNormalizeURL: List<String> = listOf(),
     val metricsFieldsToTimeBucket: List<String> = listOf(),
     val metricsFieldsToSizeBucket: List<String> = listOf(),
+
+    // Note: locally when setting up new EventType, just leave fields empty to examine model
 ) {
+    ApexUnexpectedException,
+    ApexCallout
+    /*
     ApexUnexpectedException(
         messageField = "EXCEPTION_MESSAGE",
         insensitiveFields = listOf(
@@ -36,6 +41,9 @@ enum class EventType(
             "EXCEPTION_CATEGORY"
         )
     ),
+
+     */
+    /*
     ApexCallout(
         fieldsToUseAsMetricLabels = listOf(
             "EVENT_TYPE",
@@ -54,6 +62,8 @@ enum class EventType(
         metricsFieldsToSizeBucket = listOf("REQUEST_SIZE", "RESPONSE_SIZE"),
         metricsFieldsToTimeBucket = listOf("RUN_TIME", "TIME", "CPU_TIME"),
     )
+
+     */
 }
 
 fun EventType.generateLoggingContext(eventData: JsonObject, excludeSensitive: Boolean, rowNumber: Int, batchSize: Int): Map<String, String> {

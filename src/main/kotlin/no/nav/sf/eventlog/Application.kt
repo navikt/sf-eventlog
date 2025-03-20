@@ -83,10 +83,13 @@ class Application {
             // salesforceClient.fetchLogFiles(EventType.ApexCallout)
             // Normally run via the async TransferJob:
             // salesforceClient.fetchAndProcessEventLogs(EventType.ApexCallout, LocalDate.parse("2025-01-09"), 0)
+            fetchAndLogHandlerCommon(LocalDate.now().minusDays(1), "ALL")
         }
         // if (cluster == "prod-gcp") PostgresDatabase.create()
         // salesforceClient.fetchLogFiles(EventType.ApexUnexpectedException)
     }
+
+    var debugValue: Int = 0
 
     private val examineHandler: HttpHandler = {
         val date = LocalDate.parse(it.query("date")!!)
@@ -99,7 +102,7 @@ class Application {
         } else {
             logFilesForDate.first().let {
                 val capturedEvents = application.salesforceClient.fetchLogFileContentAsJson(it.file)
-                Response(OK).body("${capturedEvents.size} log rows found of $eventTypeArg for $date.")
+                Response(OK).body("${capturedEvents.size} log rows found of $eventTypeArg for $date. DEBUG $debugValue")
             }
         }
     }
