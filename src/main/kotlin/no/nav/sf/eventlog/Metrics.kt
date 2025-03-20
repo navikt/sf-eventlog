@@ -62,21 +62,21 @@ object Metrics {
 
     fun Long.toTimeLabel(): String = when {
         this < 10 -> "< 10 ms"
-        this < 50 -> "< 50 ms"
-        this < 100 -> "< 100 ms"
-        this < 500 -> "< 500 ms"
-        this < 1000 -> "< 1s"
-        this < 5000 -> "< 5s"
-        this < 10000 -> "< 10s"
+        this < 50 -> "> 10 ms and < 50 ms"
+        this < 100 -> "> 50 ms and < 100 ms"
+        this < 500 -> "> 100 ms and < 500 ms"
+        this < 1000 -> "> 500 ms and < 1s"
+        this < 5000 -> "> 1s and < 5s"
+        this < 10000 -> "> 5s and < 10s"
         else -> "> 10s"
     }
 
     fun Long.toSizeLabel(): String = when {
         this < 1024 -> "< 1 KB"
-        this < 10 * 1024 -> "< 10 KB"
-        this < 100 * 1024 -> "< 100 KB"
-        this < 1024 * 1024 -> "< 1 MB"
-        this < 10 * 1024 * 1024 -> "< 10 MB"
+        this < 10 * 1024 -> "> 1 KB and < 10 KB"
+        this < 100 * 1024 -> "> 10 KB and < 100 KB"
+        this < 1024 * 1024 -> "> 100 KB and < 1 MB"
+        this < 10 * 1024 * 1024 -> "> 1 MB and < 10 MB"
         else -> "> 10 MB"
     }
 

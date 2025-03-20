@@ -25,6 +25,7 @@ import java.time.format.DateTimeFormatter
  */
 class CompareAppLogsUtilityTest {
 
+    // Use file names ignored via .gitignore
     val CSV_FROM_ADEO = "/Scratch_logadeo17mars.csv"
     val JSON_ARRAY_FROM_SOQL = "/Scratch_records17mars.json"
 
