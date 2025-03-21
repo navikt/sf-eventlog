@@ -29,6 +29,7 @@ import org.apache.commons.csv.CSVParser
 import org.http4k.client.ApacheClient
 import org.http4k.core.Method
 import org.http4k.core.Request
+import org.http4k.core.Response
 import java.io.File
 import java.io.StringReader
 import java.lang.Exception
@@ -288,8 +289,13 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
 
         File("/tmp/responseFromLogFileFetch").writeText(response.toMessage())
 
+        val oldWay = parseCSVToJsonObjects(response.bodyString())
+
+        // val oldWayCount = oldWay.size
+        // val newWayCountAndResponse = countCsvRows(request)
+
         return if (response.status.successful) {
-            parseCSVToJsonObjects(response.bodyString())
+            oldWay
         } else {
             log.error { "Error fetching log file $logFileUrl: ${response.status.code}:${response.bodyString()}" }
             listOf()
@@ -300,7 +306,7 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
         // File("/tmp/latestCsvData").writeText(csvData)
         application.debugValue = csvData.length
         log.info { "Size of csv data ${csvData.length}" }
-        return listOf()
+        // return listOf()
         val result: MutableList<JsonObject> = mutableListOf()
 
         val reader = StringReader(csvData)
@@ -381,7 +387,7 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
         val soqlQuery = "SELECT EventType FROM EventLogFile GROUP BY EventType"
         val encodedQuery = URLEncoder.encode(soqlQuery, "UTF-8")
 
-        var nextRecordsUrl = "/services/data/$apiVersion/query?q=$encodedQuery"
+        val nextRecordsUrl = "/services/data/$apiVersion/query?q=$encodedQuery"
 
         val request = Request(Method.GET, accessTokenHandler.instanceUrl + nextRecordsUrl)
             .header("Authorization", "Bearer ${accessTokenHandler.accessToken}")
@@ -389,5 +395,143 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
         val response = client(request)
         File("/tmp/responseEventTypeQuery").writeText(response.toMessage())
         return response.bodyString()
+    }
+
+    fun countCsvRows(logFileRequest: Request): Pair<Int, Response> {
+        return try {
+            val response = client(logFileRequest)
+            if (response.status.successful) {
+                val reader = response.body.stream.reader()
+                val csvParser = CSVParser(reader, CSVFormat.DEFAULT.builder().setSkipHeaderRecord(true).setHeader().build())
+                val rowCount = csvParser.records.size // This counts the rows
+                csvParser.close()
+                reader.close()
+                Pair(rowCount, response)
+            } else {
+                log.error("Failed to fetch CSV data for counting rows: ${response.status}")
+                throw IllegalStateException("Error counting CSV rows: ${response.status}")
+            }
+        } catch (e: Exception) {
+            log.error("Error counting CSV rows: ${e.message}")
+            throw IllegalStateException("Error counting CSV rows: ${e.message}")
+        }
+    }
+
+    fun processCsvRows(response: Response, count: Int, date: LocalDate, eventType: EventType, skipToRow: Int) {
+        return try {
+            TransferJob.goal = count
+            if (response.status.successful) {
+                val reader = response.body.stream.reader()
+                val csvParser = CSVParser(reader, CSVFormat.DEFAULT.builder().setSkipHeaderRecord(true).setHeader().build())
+
+                // Process each row as it’s read
+                var logCounter = 0
+                if (!local) {
+                    PostgresDatabase.upsertLogSyncProgress(date, eventType.name, 0, count)
+                }
+
+                if (skipToRow > 1) {
+                    log.info { "Will continue process $count events from position $skipToRow of type $eventType for $date" }
+                } else {
+                    log.info { "Will process $count events of type $eventType for $date" }
+                }
+
+                for (csvRecord in csvParser) {
+                    logCounter++ // will start from 1
+
+                    // Convert each record to a JSON object TODO not necessary - can skip transform later, only keep value cleaning
+                    val event = JsonObject()
+                    csvRecord.toMap().forEach { (key, value) ->
+                        event.addProperty(key, if (value.isNullOrBlank()) null else value.trim('"'))
+                    }
+
+                    val logMessage = if (eventType.messageField.isNotBlank()) {
+                        event[eventType.messageField]?.asString ?: "N/A"
+                    } else {
+                        // Locally - if no message field defined nor any metrics labels
+                        // we want to see full event object to examine model of new event type
+                        if (local && eventType.fieldsToUseAsMetricLabels.isEmpty()) event.toString() else "N/A"
+                    }
+
+                    if (logCounter >= skipToRow) {
+                        if (eventType.messageField.isNotEmpty() || (local && eventType.fieldsToUseAsMetricLabels.isEmpty())) {
+                            val nonSensitiveContext =
+                                eventType.generateLoggingContext(
+                                    eventData = event,
+                                    excludeSensitive = true,
+                                    logCounter,
+                                    count
+                                )
+                            val fullContext = eventType.generateLoggingContext(
+                                eventData = event,
+                                excludeSensitive = false,
+                                logCounter,
+                                count
+                            )
+
+                            withLoggingContext(nonSensitiveContext) {
+                                log.error(logMessage)
+                            }
+
+                            withLoggingContext(fullContext) {
+                                log.error(SECURE, logMessage)
+                            }
+                        }
+
+                        if (eventType.fieldsToUseAsMetricLabels.isNotEmpty()) {
+                            try {
+                                Metrics.eventLogCounters[eventType]!!
+                                    .labels(
+                                        *eventType.fieldsToUseAsMetricLabels.map {
+                                            val strValue = event.fieldAsString(it)
+                                            if (eventType.metricsFieldsToNormalizeURL.contains(it)) {
+                                                Metrics.normalizeUrl(strValue)
+                                            } else if (eventType.metricsFieldsToTimeBucket.contains(it)) {
+                                                strValue.toLong().toTimeLabel()
+                                            } else if (eventType.metricsFieldsToSizeBucket.contains(it)) {
+                                                strValue.toLong().toSizeLabel()
+                                            } else {
+                                                event.fieldAsString(it)
+                                            }
+                                        }.toTypedArray()
+                                    ).inc()
+                            } catch (e: Exception) {
+                                log.warn { "Failed to populate and increment a metric of eventType $eventType: ${e.message}" }
+                            }
+                        }
+
+                        if (!local) {
+                            PostgresDatabase.upsertLogSyncProgress(date, eventType.name, logCounter, count)
+                        }
+                    }
+
+                    TransferJob.progress = logCounter
+                    if (eventType.messageField.isNotEmpty()) {
+                        if (logCounter % 100 == 0) {
+                            if (logCounter >= skipToRow) {
+                                log.info { "Processed $logCounter of $count events" + (if (skipToRow > 1) " of which skipped first $skipToRow in current run" else "") }
+                            } else {
+                                log.info { "Skipped $logCounter of $count events" }
+                            }
+                            if (local) Thread.sleep(20) else Thread.sleep(2000) // Pause for 2 seconds
+                        }
+                    }
+                }
+                log.info { "Finally processed $logCounter of $count events" + (if (skipToRow > 1) " of which skipped first $skipToRow in current run" else "") }
+                val successState = createSuccessStatus(date, eventType, "Processed $count events of type ${eventType.name} for $date " + (if (skipToRow > 1) " (pickup from $skipToRow in current run)" else ""))
+                if (!local) {
+                    PostgresDatabase.upsertLogSyncStatus(successState)
+                    PostgresDatabase.updateCache(successState)
+                }
+                csvParser.close()
+                reader.close()
+            } else {
+                log.error("Failed to fetch and process CSV data: ${response.status}")
+                throw IllegalStateException("Failed to fetch and process CSV data: ${response.status}")
+            }
+        } catch (e: Exception) {
+            log.error("Exception when fetching and process CSV data counting CSV rows: ${e.message}")
+            throw IllegalStateException("Exception when fetching and process CSV data counting CSV rows: ${e.message}")
+        }
     }
 }

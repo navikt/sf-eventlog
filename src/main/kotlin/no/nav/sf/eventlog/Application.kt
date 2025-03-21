@@ -82,8 +82,8 @@ class Application {
         if (local) {
             // salesforceClient.fetchLogFiles(EventType.ApexCallout)
             // Normally run via the async TransferJob:
-            // salesforceClient.fetchAndProcessEventLogs(EventType.ApexCallout, LocalDate.parse("2025-01-09"), 0)
-            fetchAndLogHandlerCommon(LocalDate.now().minusDays(1), "ALL")
+            salesforceClient.fetchAndProcessEventLogs(EventType.ApexUnexpectedException, LocalDate.parse("2025-01-09"), 0)
+            // fetchAndLogHandlerCommon(LocalDate.now().minusDays(1), "ALL")
         }
         // if (cluster == "prod-gcp") PostgresDatabase.create()
         // salesforceClient.fetchLogFiles(EventType.ApexUnexpectedException)
