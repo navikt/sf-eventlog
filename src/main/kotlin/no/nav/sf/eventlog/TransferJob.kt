@@ -32,7 +32,7 @@ object TransferJob {
         transferDate = date
         transferEventType = eventType
         status = try {
-            application.salesforceClient.fetchAndProcessEventLogs(eventType, date, skipToRow)
+            application.salesforceClient.fetchAndProcessEventLogsStreaming(eventType, date, skipToRow)
         } catch (e: Exception) {
             createFailureStatus(date, eventType, "Exception " + e.message + " : " + e.stackTraceToString())
         } finally {

@@ -82,7 +82,7 @@ class Application {
         if (local) {
             // salesforceClient.fetchLogFiles(EventType.ApexCallout)
             // Normally run via the async TransferJob:
-            salesforceClient.fetchAndProcessEventLogs(EventType.ApexUnexpectedException, LocalDate.parse("2025-01-09"), 0)
+            salesforceClient.fetchAndProcessEventLogsStreaming(EventType.ApexUnexpectedException, LocalDate.parse("2025-03-16"), 0)
             // fetchAndLogHandlerCommon(LocalDate.now().minusDays(1), "ALL")
         }
         // if (cluster == "prod-gcp") PostgresDatabase.create()
@@ -101,8 +101,9 @@ class Application {
             Response(OK).body("No log rows found of $eventTypeArg for $date")
         } else {
             logFilesForDate.first().let {
-                val capturedEvents = application.salesforceClient.fetchLogFileContentAsJson(it.file)
-                Response(OK).body("${capturedEvents.size} log rows found of $eventTypeArg for $date. DEBUG $debugValue")
+                val responseAndCount = application.salesforceClient.countCsvRows(application.salesforceClient.logFileContentRequest(it.file))
+                // val capturedEvents = application.salesforceClient.fetchLogFileContentAsJson(it.file)
+                Response(OK).body("${responseAndCount.second} log rows found of $eventTypeArg for $date. DEBUG $debugValue")
             }
         }
     }

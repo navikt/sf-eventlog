@@ -11,7 +11,6 @@ import no.nav.sf.eventlog.Metrics.toSizeLabel
 import no.nav.sf.eventlog.Metrics.toTimeLabel
 import no.nav.sf.eventlog.SECURE
 import no.nav.sf.eventlog.TransferJob
-import no.nav.sf.eventlog.application
 import no.nav.sf.eventlog.config_SALESFORCE_API_VERSION
 import no.nav.sf.eventlog.db.LogSyncStatus
 import no.nav.sf.eventlog.db.PostgresDatabase
@@ -31,7 +30,6 @@ import org.http4k.core.Method
 import org.http4k.core.Request
 import org.http4k.core.Response
 import java.io.File
-import java.io.StringReader
 import java.lang.Exception
 import java.lang.IllegalStateException
 import java.net.URLEncoder
@@ -88,6 +86,30 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
     fun isLogFileToFetch(date: LocalDate, eventType: EventType): Boolean =
         logFileDataMap[eventType]?.any { it.date == date } == true
 
+    fun fetchAndProcessEventLogsStreaming(eventType: EventType, date: LocalDate, skipToRow: Int): LogSyncStatus {
+        log.info { "Will fetch event logs for ${eventType.name} $date" + (if (skipToRow > 1) " but skip to row $skipToRow" else "") }
+        try {
+            val logFilesForDate = logFileDataMap[eventType]?.filter { it.date == date } ?: listOf()
+            if (logFilesForDate.size > 1) throw IllegalStateException("Should never be more then one log file per log date")
+            if (logFilesForDate.isEmpty()) {
+                return createNoLogfileStatus(date, eventType)
+            }
+            logFilesForDate.first().let {
+                val countAndResponse = countCsvRows(logFileContentRequest(it.file))
+                return processCsvRows(countAndResponse.second, countAndResponse.first, date, eventType, skipToRow)
+            }
+        } catch (e: Exception) {
+            log.warn { "Process interrupted " + e.javaClass.name + ":" + e.message }
+            val failureState = createFailureStatus(date, eventType, e.javaClass.name + ":" + e.message)
+            if (!local) {
+                PostgresDatabase.upsertLogSyncStatus(failureState)
+                PostgresDatabase.updateCache(failureState)
+            }
+            return failureState
+        }
+    }
+
+/*
     fun fetchAndProcessEventLogs(eventType: EventType, date: LocalDate, skipToRow: Int): LogSyncStatus {
         log.info { "Will fetch event logs for ${eventType.name} $date" + (if (skipToRow > 1) " but skip to row $skipToRow" else "") }
         try {
@@ -206,12 +228,14 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
         }
     }
 
+ */
+
     /***
      * fetchLogFiles - fetches FileLogs from Salesforce that each contains the event logs for evenType for one day
      *  - logDate - which date to fetch logfile for, if null that means fetch all (typically last 30 days)
      *  - fieldOfInterest - which field is i
      */
-    fun fetchLogFiles(eventType: EventType, logDate: LocalDate? = null): List<LogFileData> {
+    fun fetchLogFiles(eventType: EventType, logDate: LocalDate? = null, verbose: Boolean = false): List<LogFileData> {
         val soqlQuery = "SELECT Id, EventType, LogFile, LogDate FROM EventLogFile WHERE EventType='${eventType.name}'" +
             (logDate?.let { dateRestrictionExtention(it) } ?: "")
         val encodedQuery = URLEncoder.encode(soqlQuery, "UTF-8")
@@ -231,10 +255,12 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                 val recordEntries = obj["records"].asJsonArray
                 result.addAll(
                     recordEntries.map {
-                        log.debug {
-                            "Fetched logfile for ${eventType.name} from date " + LocalDate.parse(
-                                it.asJsonObject["LogDate"].asString.substring(0, 10)
-                            )
+                        if (verbose) {
+                            log.debug {
+                                "Fetched logfile for ${eventType.name} from date " + LocalDate.parse(
+                                    it.asJsonObject["LogDate"].asString.substring(0, 10)
+                                )
+                            }
                         }
                         LogFileData(file = it.asJsonObject["LogFile"].asString, date = LocalDate.parse(it.asJsonObject["LogDate"].asString.substring(0, 10)))
                     }
@@ -279,6 +305,12 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
         return " AND CreatedDate >= $startOfDayStr AND CreatedDate < $endOfDayStr"
     }
 
+    fun logFileContentRequest(logFileUrl: String): Request =
+        Request(Method.GET, "${accessTokenHandler.instanceUrl}$logFileUrl")
+            .header("Authorization", "Bearer ${accessTokenHandler.accessToken}")
+            .header("Accept", "text/csv")
+
+    /*
     fun fetchLogFileContentAsJson(logFileUrl: String): List<JsonObject> {
         val fullLogFileUrl = "${accessTokenHandler.instanceUrl}$logFileUrl"
         val request = Request(Method.GET, fullLogFileUrl)
@@ -302,6 +334,9 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
         }
     }
 
+     */
+
+    /*
     private fun parseCSVToJsonObjects(csvData: String): List<JsonObject> {
         // File("/tmp/latestCsvData").writeText(csvData)
         application.debugValue = csvData.length
@@ -332,6 +367,8 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
 
         return result
     }
+
+     */
 
     // Used for health check of Application log
     fun fetchApplicationLogsForDateFromRest(logDate: LocalDate): Pair<Int, Int> {
@@ -417,8 +454,8 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
         }
     }
 
-    fun processCsvRows(response: Response, count: Int, date: LocalDate, eventType: EventType, skipToRow: Int) {
-        return try {
+    fun processCsvRows(response: Response, count: Int, date: LocalDate, eventType: EventType, skipToRow: Int): LogSyncStatus {
+        try {
             TransferJob.goal = count
             if (response.status.successful) {
                 val reader = response.body.stream.reader()
@@ -517,14 +554,15 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                         }
                     }
                 }
+                csvParser.close()
+                reader.close()
                 log.info { "Finally processed $logCounter of $count events" + (if (skipToRow > 1) " of which skipped first $skipToRow in current run" else "") }
                 val successState = createSuccessStatus(date, eventType, "Processed $count events of type ${eventType.name} for $date " + (if (skipToRow > 1) " (pickup from $skipToRow in current run)" else ""))
                 if (!local) {
                     PostgresDatabase.upsertLogSyncStatus(successState)
                     PostgresDatabase.updateCache(successState)
                 }
-                csvParser.close()
-                reader.close()
+                return successState
             } else {
                 log.error("Failed to fetch and process CSV data: ${response.status}")
                 throw IllegalStateException("Failed to fetch and process CSV data: ${response.status}")
