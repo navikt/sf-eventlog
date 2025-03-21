@@ -103,7 +103,7 @@ class Application {
             logFilesForDate.first().let {
                 val responseAndCount = application.salesforceClient.countCsvRows(application.salesforceClient.logFileContentRequest(it.file))
                 // val capturedEvents = application.salesforceClient.fetchLogFileContentAsJson(it.file)
-                Response(OK).body("${responseAndCount.second} log rows found of $eventTypeArg for $date. DEBUG $debugValue")
+                Response(OK).body("${responseAndCount.first} log rows found of $eventTypeArg for $date. DEBUG $debugValue")
             }
         }
     }

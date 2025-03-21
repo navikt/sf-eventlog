@@ -39,7 +39,7 @@ enum class EventType(
             "EXCEPTION_TYPE",
             "EXCEPTION_CATEGORY"
         )
-    )/*,
+    ),
     ApexCallout(
         fieldsToUseAsMetricLabels = listOf(
             "EVENT_TYPE",
@@ -57,7 +57,7 @@ enum class EventType(
         metricsFieldsToNormalizeURL = listOf("URL"),
         metricsFieldsToSizeBucket = listOf("REQUEST_SIZE", "RESPONSE_SIZE"),
         metricsFieldsToTimeBucket = listOf("RUN_TIME", "TIME", "CPU_TIME"),
-    )*/
+    )
 }
 
 fun EventType.generateLoggingContext(eventData: JsonObject, excludeSensitive: Boolean, rowNumber: Int, batchSize: Int): Map<String, String> {
