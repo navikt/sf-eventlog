@@ -82,8 +82,8 @@ class Application {
         if (local) {
             // salesforceClient.fetchLogFiles(EventType.ApexCallout)
             // Normally run via the async TransferJob:
-            salesforceClient.fetchAndProcessEventLogsStreaming(EventType.ApexUnexpectedException, LocalDate.parse("2025-03-16"), 0)
-            // fetchAndLogHandlerCommon(LocalDate.now().minusDays(1), "ALL")
+            // salesforceClient.fetchAndProcessEventLogsStreaming(EventType.ApexUnexpectedException, LocalDate.parse("2025-03-16"), 0)
+            fetchAndLogHandlerCommon(LocalDate.now().minusDays(1), "ALL")
         }
         // if (cluster == "prod-gcp") PostgresDatabase.create()
         // salesforceClient.fetchLogFiles(EventType.ApexUnexpectedException)
@@ -142,13 +142,13 @@ class Application {
                 PostgresDatabase.logSyncStatusMap[eventType]?.get(date)
             }
             return if (!salesforceClient.isLogFileToFetch(date, eventType)) {
-                log.info { "Skipping performing fetch and log on $eventType for $date since there is no such log file Salesforce" }
+                log.info { "Skipping performing fetch and log on $eventType for $date - No log file in Salesforce" }
                 createNoLogfileStatus(date, eventType)
             } else if (!local && eventLogsForDate?.status == "SUCCESS") {
-                log.info { "Skipping performing fetch and log on $eventType for $date since there is a sync registered as performed successfully already" }
+                log.info { "Skipping performing fetch and log on $eventType for $date - Already processed successfully" }
                 eventLogsForDate
             } else if (TransferJob.active) {
-                log.info { "Skipping performing fetch and log on $eventType for $date since there is a job in progress" }
+                log.info { "Skipping performing fetch and log on $eventType for $date - Job in progress" }
                 createUnprocessedStatus(date, eventType)
             } else {
                 Metrics.clearEventLogCounter(eventType)
@@ -159,14 +159,19 @@ class Application {
         return if (eventTypeArg == "ALL") {
             log.info { "Will fetch event logs for ALL event types (${EventType.values().joinToString(",") { it.name }}) for $date" }
             val result = EventType.values().map {
+                log.info { "In $it, start handling" }
                 var status = handleEventLogs(it)
                 if (status.status == "PROCESSING") {
-                    while (TransferJob.pollStatus(date, it).status == Status.ACCEPTED) {
-                        log.info { "Transfer ALL in progress, sleep 30 s" }
-                        Thread.sleep(30000)
+                    // Use the pollStatus (same as gui) do determine if current eventType job has finished
+                    // status == null is when async tread is not yet launched so the job has not started yet
+                    while (TransferJob.pollStatus(date, it).status == Status.ACCEPTED || TransferJob.status == null) {
+                        log.info { "In $it, Transfer ALL in progress, sleep 10 s" }
+                        Thread.sleep(10000)
                     }
+                    log.info { "In $it, Done waiting will use job status ${TransferJob.status ?: "Null state!!"}" }
                     status = TransferJob.status!!
                 }
+                log.info { "In $it, returning status $status" }
                 status
             }
             Response(OK).body(gson.toJson(result))
