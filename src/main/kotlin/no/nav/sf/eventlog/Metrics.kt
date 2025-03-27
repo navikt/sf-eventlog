@@ -42,9 +42,11 @@ object Metrics {
             .replace(Regex("/[A-Z]\\d{4,}"), "/{ident}")
             .replace(Regex("/[^/]+\\.(xml|pdf)$"), "/{filename}")
             .replace(Regex("/[A-Z]{3}(?=/|$)"), "/{code}")
+            .replace(Regex("/NAV%20\\d{2}-\\d{2}\\.\\d{2}[A-Z]?"), "/{NAVdate}")
 
     fun normalizeUrl(url: String): String {
-        val urlWithoutQuery = url.substringBefore("?") // Remove query parameters
+        val urlWithoutFragment = url.substringBefore("#") // Remove fragment identifiers
+        val urlWithoutQuery = urlWithoutFragment.substringBefore("?") // Remove query parameters
 
         return if (urlWithoutQuery.startsWith("http")) {
             val uri = java.net.URI(urlWithoutQuery)
