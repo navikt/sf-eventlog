@@ -42,7 +42,6 @@ object Metrics {
             .replace(Regex("/[A-Z]\\d{4,}"), "/{ident}")
             .replace(Regex("/[^/]+\\.(xml|pdf)$"), "/{filename}")
             .replace(Regex("/[A-Z]{3}(?=/|$)"), "/{code}")
-            .replace(Regex("/NAV%20\\d{2}-\\d{2}\\.\\d{2}[A-Z]?"), "/{NAVdate}")
 
     fun normalizeUrl(url: String): String {
         val urlWithoutFragment = url.substringBefore("#") // Remove fragment identifiers
@@ -56,7 +55,7 @@ object Metrics {
                 "${uri.host}${mask(uri.path)}"
             }
         } else if (urlWithoutQuery.startsWith("callout:")) {
-            "callout:" + mask(urlWithoutQuery.removePrefix("callout:"))
+            urlWithoutQuery.substringBefore("/", "callout:") // Keep only the first part after "callout:"
         } else {
             urlWithoutQuery
         }
