@@ -10,6 +10,7 @@ enum class EventType(
 
     // For metrics
     val fieldsToUseAsMetricLabels: List<String> = listOf(),
+    val fieldToUseAsMetricDateLabel: String = "TIMESTAMP_DERIVED",
     val metricsFieldsToNormalizeURL: List<String> = listOf(),
     val metricsFieldsToTimeBucket: List<String> = listOf(),
     val metricsFieldsToSizeBucket: List<String> = listOf(),

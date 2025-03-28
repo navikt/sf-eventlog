@@ -89,7 +89,7 @@ object Metrics {
     init {
         DefaultExports.initialize()
         eventLogCounters = EventType.values().filter { it.fieldsToUseAsMetricLabels.isNotEmpty() }
-            .associateWith { registerLabelCounter(it.name, *it.fieldsToUseAsMetricLabels.toTypedArray()) }
+            .associateWith { registerLabelCounter(it.name, *it.fieldsToUseAsMetricLabels.toTypedArray() + it.fieldToUseAsMetricDateLabel) }
     }
 
     val metricsHttpHandler: HttpHandler = {

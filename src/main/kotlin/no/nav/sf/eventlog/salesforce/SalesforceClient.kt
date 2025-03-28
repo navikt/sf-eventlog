@@ -530,7 +530,7 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                                             } else {
                                                 event.fieldAsString(it)
                                             }
-                                        }.toTypedArray()
+                                        }.toTypedArray() + event.fieldAsString(eventType.fieldToUseAsMetricDateLabel).substring(0, 10)
                                     ).inc()
                             } catch (e: Exception) {
                                 log.warn { "Failed to populate and increment a metric of eventType $eventType: ${e.message}" }
