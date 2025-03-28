@@ -55,14 +55,17 @@ object Metrics {
                 "${uri.host}${mask(uri.path)}"
             }
         } else if (urlWithoutQuery.startsWith("callout:")) {
-            urlWithoutQuery.substringBefore("/", "callout:") // Keep only the first part after "callout:"
+            if (urlWithoutQuery.contains("/")) {
+                urlWithoutQuery.substringBefore("/", "callout:") // Keep only the first part after "callout:"
+            } else {
+                urlWithoutQuery
+            }
         } else {
             urlWithoutQuery
         }
     }
 
     // TODO Add DATE metric
-
     fun Long.toTimeLabel(): String = when {
         this < 10 -> "< 10 ms"
         this < 50 -> "> 10 ms and < 50 ms"
