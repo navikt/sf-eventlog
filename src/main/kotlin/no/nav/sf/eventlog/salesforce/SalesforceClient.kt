@@ -109,127 +109,6 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
         }
     }
 
-/*
-    fun fetchAndProcessEventLogs(eventType: EventType, date: LocalDate, skipToRow: Int): LogSyncStatus {
-        log.info { "Will fetch event logs for ${eventType.name} $date" + (if (skipToRow > 1) " but skip to row $skipToRow" else "") }
-        try {
-            val logFilesForDate = logFileDataMap[eventType]?.filter { it.date == date } ?: listOf()
-            if (logFilesForDate.size > 1) throw IllegalStateException("Should never be more then one log file per log date")
-            if (logFilesForDate.isEmpty()) {
-                return createNoLogfileStatus(date, eventType)
-            }
-            logFilesForDate.first().let {
-                val capturedEvents = fetchLogFileContentAsJson(it.file)
-
-                TransferJob.goal = capturedEvents.size
-                if (skipToRow > 1) {
-                    log.info { "Will continue process ${capturedEvents.size} events from position $skipToRow of type $eventType for $date" }
-                } else {
-                    log.info { "Will process ${capturedEvents.size} events of type $eventType for $date" }
-                }
-
-                var logCounter = 0 // To pause every 100th record
-                val capturedEventsSize = capturedEvents.size
-                if (!local) {
-                    PostgresDatabase.upsertLogSyncProgress(date, eventType.name, 0, capturedEventsSize)
-                }
-                capturedEvents.forEach { event ->
-                    // File("/tmp/latestEvent").writeText(event.toString())
-                    val logMessage = if (eventType.messageField.isNotBlank()) {
-                        event[eventType.messageField]?.asString ?: "N/A"
-                    } else {
-                        // Locally - if no message field defined nor any metrics labels
-                        // we want to see full event object to examine model of new event type
-                        if (local && eventType.fieldsToUseAsMetricLabels.isEmpty()) event.toString() else "N/A"
-                    }
-
-                    logCounter++
-
-                    if (logCounter >= skipToRow) {
-                        if (eventType.messageField.isNotEmpty() || (local && eventType.fieldsToUseAsMetricLabels.isEmpty())) {
-                            val nonSensitiveContext =
-                                eventType.generateLoggingContext(
-                                    eventData = event,
-                                    excludeSensitive = true,
-                                    logCounter,
-                                    capturedEventsSize
-                                )
-                            val fullContext = eventType.generateLoggingContext(
-                                eventData = event,
-                                excludeSensitive = false,
-                                logCounter,
-                                capturedEventsSize
-                            )
-
-                            withLoggingContext(nonSensitiveContext) {
-                                log.error(logMessage)
-                            }
-
-                            withLoggingContext(fullContext) {
-                                log.error(SECURE, logMessage)
-                            }
-                        }
-
-                        if (eventType.fieldsToUseAsMetricLabels.isNotEmpty()) {
-                            try {
-                                Metrics.eventLogCounters[eventType]!!
-                                    .labels(
-                                        *eventType.fieldsToUseAsMetricLabels.map {
-                                            val strValue = event.fieldAsString(it)
-                                            if (eventType.metricsFieldsToNormalizeURL.contains(it)) {
-                                                Metrics.normalizeUrl(strValue)
-                                            } else if (eventType.metricsFieldsToTimeBucket.contains(it)) {
-                                                strValue.toLong().toTimeLabel()
-                                            } else if (eventType.metricsFieldsToSizeBucket.contains(it)) {
-                                                strValue.toLong().toSizeLabel()
-                                            } else {
-                                                event.fieldAsString(it)
-                                            }
-                                        }.toTypedArray()
-                                    ).inc()
-                            } catch (e: Exception) {
-                                log.warn { "Failed to populate and increment a metric of eventType $eventType: ${e.message}" }
-                            }
-                        }
-
-                        if (!local) {
-                            PostgresDatabase.upsertLogSyncProgress(date, eventType.name, logCounter, capturedEventsSize)
-                        }
-                    }
-
-                    TransferJob.progress = logCounter
-                    if (eventType.messageField.isNotEmpty()) {
-                        if (logCounter % 100 == 0) {
-                            if (logCounter >= skipToRow) {
-                                log.info { "Processed $logCounter of $capturedEventsSize events" + (if (skipToRow > 1) " of which skipped first $skipToRow in current run" else "") }
-                            } else {
-                                log.info { "Skipped $logCounter of $capturedEventsSize events" }
-                            }
-                            if (local) Thread.sleep(20) else Thread.sleep(2000) // Pause for 2 seconds
-                        }
-                    }
-                }
-                log.info { "Finally processed $logCounter of $capturedEventsSize events" + (if (skipToRow > 1) " of which skipped first $skipToRow in current run" else "") }
-                val successState = createSuccessStatus(date, eventType, "Processed $capturedEventsSize events of type ${eventType.name} for $date " + (if (skipToRow > 1) " (pickup from $skipToRow in current run)" else ""))
-                if (!local) {
-                    PostgresDatabase.upsertLogSyncStatus(successState)
-                    PostgresDatabase.updateCache(successState)
-                }
-                return successState
-            }
-        } catch (e: Exception) {
-            log.warn { "Process interrupted " + e.javaClass.name + ":" + e.message }
-            val failureState = createFailureStatus(date, eventType, e.javaClass.name + ":" + e.message)
-            if (!local) {
-                PostgresDatabase.upsertLogSyncStatus(failureState)
-                PostgresDatabase.updateCache(failureState)
-            }
-            return failureState
-        }
-    }
-
- */
-
     /***
      * fetchLogFiles - fetches FileLogs from Salesforce that each contains the event logs for evenType for one day
      *  - logDate - which date to fetch logfile for, if null that means fetch all (typically last 30 days)
@@ -309,66 +188,6 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
         Request(Method.GET, "${accessTokenHandler.instanceUrl}$logFileUrl")
             .header("Authorization", "Bearer ${accessTokenHandler.accessToken}")
             .header("Accept", "text/csv")
-
-    /*
-    fun fetchLogFileContentAsJson(logFileUrl: String): List<JsonObject> {
-        val fullLogFileUrl = "${accessTokenHandler.instanceUrl}$logFileUrl"
-        val request = Request(Method.GET, fullLogFileUrl)
-            .header("Authorization", "Bearer ${accessTokenHandler.accessToken}")
-            .header("Accept", "text/csv")
-
-        val response = client(request)
-
-        File("/tmp/responseFromLogFileFetch").writeText(response.toMessage())
-
-        val oldWay = parseCSVToJsonObjects(response.bodyString())
-
-        // val oldWayCount = oldWay.size
-        // val newWayCountAndResponse = countCsvRows(request)
-
-        return if (response.status.successful) {
-            oldWay
-        } else {
-            log.error { "Error fetching log file $logFileUrl: ${response.status.code}:${response.bodyString()}" }
-            listOf()
-        }
-    }
-
-     */
-
-    /*
-    private fun parseCSVToJsonObjects(csvData: String): List<JsonObject> {
-        // File("/tmp/latestCsvData").writeText(csvData)
-        application.debugValue = csvData.length
-        log.info { "Size of csv data ${csvData.length}" }
-        // return listOf()
-        val result: MutableList<JsonObject> = mutableListOf()
-
-        val reader = StringReader(csvData)
-        val csvParser = CSVParser(
-            reader,
-            CSVFormat.DEFAULT.builder().setSkipHeaderRecord(true).setHeader().build()
-        )
-
-        // Iterate through the records (skipping the header row)
-        for (csvRecord in csvParser) {
-            val jsonObject = JsonObject()
-
-            // For each column in the record, add the key-value pair to the JsonObject
-            csvRecord.toMap().forEach { (key, value) ->
-                jsonObject.addProperty(key, if (value.isNullOrBlank()) null else value.trim('"'))
-            }
-
-            result.add(jsonObject)
-        }
-        csvParser.close()
-        reader.close()
-        // File("/tmp/latestJson").writeText(Gson().toJson(result))
-
-        return result
-    }
-
-     */
 
     // Used for health check of Application log
     fun fetchApplicationLogsForDateFromRest(logDate: LocalDate): Pair<Int, Int> {
@@ -571,5 +390,15 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
             log.error("Exception when fetching and process CSV data counting CSV rows: ${e.message}")
             throw IllegalStateException("Exception when fetching and process CSV data counting CSV rows: ${e.message}")
         }
+    }
+
+    fun limitRequest(): Request =
+        Request(Method.GET, "${accessTokenHandler.instanceUrl}/services/data/v58.0/limits") // v59.0/limits
+            .header("Authorization", "Bearer ${accessTokenHandler.accessToken}")
+
+    fun doLimitCall(): String {
+        val request = limitRequest()
+        val result = client.invoke(request)
+        return result.toMessage()
     }
 }

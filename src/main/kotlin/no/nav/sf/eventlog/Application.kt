@@ -20,6 +20,7 @@ import org.http4k.routing.static
 import org.http4k.server.ApacheServer
 import org.http4k.server.Http4kServer
 import org.http4k.server.asServer
+import java.io.File
 import java.lang.IllegalStateException
 import java.time.LocalDate
 
@@ -55,6 +56,7 @@ class Application {
         },
         "/internal/clearStatus" bind Method.GET to clearStatusHandler,
         "/internal/transferStatus" bind Method.GET to TransferJob.statusHandler,
+        "/internal/limits" bind Method.GET to limitHandler
     )
 
     fun start() {
@@ -82,9 +84,11 @@ class Application {
         if (local) {
             // salesforceClient.fetchLogFiles(EventType.ApexCallout)
             // Normally run via the async TransferJob:
-            salesforceClient.fetchAndProcessEventLogsStreaming(EventType.ApexCallout, LocalDate.parse("2025-03-16"), 0)
+            // salesforceClient.fetchAndProcessEventLogsStreaming(EventType.ApexCallout, LocalDate.parse("2025-03-16"), 0)
+            println(salesforceClient.doLimitCall())
             // fetchAndLogHandlerCommon(LocalDate.now().minusDays(1), "ALL")
         }
+        File("/tmp/limitCallResponse").writeText(salesforceClient.doLimitCall())
         // if (cluster == "prod-gcp") PostgresDatabase.create()
         // salesforceClient.fetchLogFiles(EventType.ApexUnexpectedException)
     }
@@ -119,6 +123,10 @@ class Application {
         val eventType = EventType.valueOf(eventTypeArg)
         PostgresDatabase.deleteLogSyncStatus(date, eventType)
         Response(OK).body("Done")
+    }
+
+    private val limitHandler: HttpHandler = {
+        Response(OK).body("Results:")
     }
 
     private val fetchAndLogHandler: HttpHandler = {

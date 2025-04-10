@@ -58,6 +58,6 @@ spec:
     - secret: sf-pubsub-preprod
   env:
     - name: SALESFORCE_API_VERSION
-      value: "v58.0"
+      value: "v59.0"
     - name: CONTEXT
       value: "DEV"
