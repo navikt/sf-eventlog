@@ -1,5 +1,12 @@
 package no.nav.sf.eventlog
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import mu.KotlinLogging
 import no.nav.sf.eventlog.db.LogSyncStatus
 import no.nav.sf.eventlog.db.PostgresDatabase
@@ -23,9 +30,12 @@ import org.http4k.server.asServer
 import java.io.File
 import java.lang.IllegalStateException
 import java.time.LocalDate
+import java.util.concurrent.TimeUnit
 
 class Application {
     private val log = KotlinLogging.logger { }
+
+    private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
     val context = env(config_CONTEXT)
 
@@ -80,6 +90,15 @@ class Application {
                 }
             }
         }
+        scheduleLimitCalls()
+
+        Runtime.getRuntime().addShutdownHook(
+            Thread {
+                log.info { "Shutting down gracefully..." }
+                scope.cancel()
+            }
+        )
+
         // PostgresDatabase.createProgressTable()
         if (local) {
             // salesforceClient.fetchLogFiles(EventType.ApexCallout)
@@ -91,6 +110,19 @@ class Application {
         File("/tmp/limitCallResponse").writeText(salesforceClient.doLimitCall())
         // if (cluster == "prod-gcp") PostgresDatabase.create()
         // salesforceClient.fetchLogFiles(EventType.ApexUnexpectedException)
+    }
+
+    private fun scheduleLimitCalls() {
+        scope.launch {
+            while (isActive) {
+                try {
+                    salesforceClient.doLimitCall()
+                } catch (e: Exception) {
+                    log.error(e) { "Error during salesforce limit fetch" }
+                }
+                delay(TimeUnit.MINUTES.toMillis(30)) // 30 minutes delay
+            }
+        }
     }
 
     var debugValue: Int = 0
@@ -126,7 +158,7 @@ class Application {
     }
 
     private val limitHandler: HttpHandler = {
-        Response(OK).body("Results:")
+        Response(OK).body("Results: ${salesforceClient.doLimitCall()}")
     }
 
     private val fetchAndLogHandler: HttpHandler = {

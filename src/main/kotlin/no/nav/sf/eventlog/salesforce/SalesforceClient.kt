@@ -397,8 +397,21 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
             .header("Authorization", "Bearer ${accessTokenHandler.accessToken}")
 
     fun doLimitCall(): String {
+        log.info { "Limit call triggered" }
         val request = limitRequest()
         val result = client.invoke(request)
+
+        val jsonObject = JsonParser.parseString(result.bodyString()).asJsonObject
+        for ((key, value) in jsonObject.entrySet()) {
+            val type = key // e.g. "ActiveScratchOrgs"
+            val obj = value.asJsonObject
+
+            val max = obj["Max"].asDouble
+            val remaining = obj["Remaining"].asDouble
+
+            Metrics.limitGauge.labels(type).set(max)
+            Metrics.limitRemainingGauge.labels(type).set(remaining)
+        }
         return result.toMessage()
     }
 }

@@ -19,6 +19,10 @@ object Metrics {
 
     val fetchedLogs = registerLabelCounter("fetched_logs", "event_type")
 
+    val limitGauge = registerLabelGauge("sf_limit", "type")
+
+    val limitRemainingGauge = registerLabelGauge("sf_limit_remaining", "type")
+
     val eventLogCounters: Map<EventType, Counter>
 
     fun clearEventLogCounter(eventType: EventType) = eventLogCounters[eventType]?.clear()
