@@ -54,6 +54,12 @@ spec:
     inbound:
       rules:
         - application: eventlog-fetch-job
+    outbound:
+      external:
+        - host: test.salesforce.com
+        - host: navdialog--preprod.my.salesforce.com
+        - host: navdialog--uat.my.salesforce.com
+        - host: navdialog--sit2.my.salesforce.com
   envFrom:
     - secret: sf-pubsub-preprod
   env:

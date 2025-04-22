@@ -59,6 +59,10 @@ spec:
     inbound:
       rules:
         - application: eventlog-fetch-job
+    outbound:
+      external:
+        - host: login.salesforce.com
+        - host: navdialog.my.salesforce.com
   envFrom:
     - secret: sf-eventlog
   env:
