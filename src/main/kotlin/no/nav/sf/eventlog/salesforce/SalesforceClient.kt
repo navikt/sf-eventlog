@@ -343,9 +343,17 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                                             if (eventType.metricsFieldsToNormalizeURL.contains(it)) {
                                                 Metrics.normalizeUrl(strValue)
                                             } else if (eventType.metricsFieldsToTimeBucket.contains(it)) {
-                                                strValue.toLong().toTimeLabel()
+                                                try {
+                                                    strValue.toLong().toTimeLabel()
+                                                } catch (e: Exception) {
+                                                    "Not applicable"
+                                                }
                                             } else if (eventType.metricsFieldsToSizeBucket.contains(it)) {
-                                                strValue.toLong().toSizeLabel()
+                                                try {
+                                                    strValue.toLong().toSizeLabel()
+                                                } catch (e: Exception) {
+                                                    "Not applicable"
+                                                }
                                             } else {
                                                 event.fieldAsString(it)
                                             }

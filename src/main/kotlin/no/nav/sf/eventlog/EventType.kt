@@ -58,6 +58,21 @@ enum class EventType(
         metricsFieldsToNormalizeURL = listOf("URL"),
         metricsFieldsToSizeBucket = listOf("REQUEST_SIZE", "RESPONSE_SIZE"),
         metricsFieldsToTimeBucket = listOf("RUN_TIME", "TIME", "CPU_TIME"),
+    ),
+    ApexExecution(
+        fieldsToUseAsMetricLabels = listOf(
+            "EVENT_TYPE",
+            "RUN_TIME",
+            "CPU_TIME",
+            "EXEC_TIME",
+            "DB_TOTAL_TIME",
+            "CALLOUT_TIME",
+            "NUMBER_SOQL_QUERIES",
+            "ENTRY_POINT",
+            "QUIDDITY",
+            "IS_LONG_RUNNING_REQUEST"
+        ),
+        metricsFieldsToTimeBucket = listOf("RUN_TIME", "EXEC_TIME", "CPU_TIME", "DB_TOTAL_TIME", "CALLOUT_TIME"),
     )
 }
 
