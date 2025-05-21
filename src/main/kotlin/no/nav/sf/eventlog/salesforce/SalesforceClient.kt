@@ -26,6 +26,7 @@ import no.nav.sf.eventlog.token.DefaultAccessTokenHandler
 import org.apache.commons.csv.CSVFormat
 import org.apache.commons.csv.CSVParser
 import org.http4k.client.ApacheClient
+import org.http4k.core.BodyMode
 import org.http4k.core.Method
 import org.http4k.core.Request
 import org.http4k.core.Response
@@ -46,6 +47,8 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
     private val apiVersion = env(config_SALESFORCE_API_VERSION)
 
     private val client = ApacheClient()
+
+    private val clientStreamingMode = ApacheClient(responseBodyMode = BodyMode.Stream)
 
     private val useCache = false
 
@@ -128,7 +131,7 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
             val request = Request(Method.GET, accessTokenHandler.instanceUrl + nextRecordsUrl)
                 .header("Authorization", "Bearer ${accessTokenHandler.accessToken}")
                 .header("Accept", "application/json")
-            val response = client(request)
+            val response = clientStreamingMode(request)
             if (response.status.successful) {
                 val obj = JsonParser.parseString(response.bodyString()).asJsonObject
                 val recordEntries = obj["records"].asJsonArray
@@ -207,7 +210,7 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
             val request = Request(Method.GET, accessTokenHandler.instanceUrl + nextRecordsUrl)
                 .header("Authorization", "Bearer ${accessTokenHandler.accessToken}")
                 .header("Accept", "application/json")
-            val response = client(request)
+            val response = clientStreamingMode(request)
 
             File("/tmp/soqlQ").writeText(soqlQuery)
             File("/tmp/applogresp-$logDate").writeText(response.toMessage())
@@ -248,7 +251,7 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
         val request = Request(Method.GET, accessTokenHandler.instanceUrl + nextRecordsUrl)
             .header("Authorization", "Bearer ${accessTokenHandler.accessToken}")
             .header("Accept", "application/json")
-        val response = client(request)
+        val response = clientStreamingMode(request)
         File("/tmp/responseEventTypeQuery").writeText(response.toMessage())
         return response.bodyString()
     }
@@ -256,17 +259,21 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
     fun countCsvRows(logFileRequest: Request): Pair<Int, Response> {
         return try {
             log.info { "Trigger countCsvRows" }
-            val response = client(logFileRequest)
+            val response = clientStreamingMode(logFileRequest)
             if (response.status.successful) {
                 log.info { "Successful response countCsvRows" }
                 val reader = response.body.stream.reader()
                 val csvParser = CSVParser(reader, CSVFormat.DEFAULT.builder().setSkipHeaderRecord(true).setHeader().build())
                 log.info { "Before count of countCsvRows" }
-                val rowCount = csvParser.records.size // This counts the rows
+                var rowCount = 0
+                for (record in csvParser) {
+                    rowCount++
+                }
+                // val rowCount = csvParser.records.size // This counts the rows
                 log.info { "countCsvRows result $rowCount" }
                 csvParser.close()
                 reader.close()
-                Pair(rowCount, response)
+                Pair(rowCount, clientStreamingMode(logFileRequest)) // Renew fetch of response since count has used it up
             } else {
                 log.error("Failed to fetch CSV data for counting rows: ${response.status}")
                 throw IllegalStateException("Error counting CSV rows: ${response.status}")

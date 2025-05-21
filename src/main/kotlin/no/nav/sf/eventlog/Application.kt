@@ -103,7 +103,7 @@ class Application {
         if (local) {
             // salesforceClient.fetchLogFiles(EventType.ApexCallout)
             // Normally run via the async TransferJob:
-            // salesforceClient.fetchAndProcessEventLogsStreaming(EventType.ApexExecution, LocalDate.parse("2025-05-16"), 0)
+            salesforceClient.fetchAndProcessEventLogsStreaming(EventType.ApexExecution, LocalDate.parse("2025-05-16"), 0)
             // println(salesforceClient.doLimitCall())
             // fetchAndLogHandlerCommon(LocalDate.now().minusDays(1), "ALL")
         }
