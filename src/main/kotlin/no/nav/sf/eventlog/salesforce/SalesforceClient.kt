@@ -25,6 +25,10 @@ import no.nav.sf.eventlog.token.AccessTokenHandler
 import no.nav.sf.eventlog.token.DefaultAccessTokenHandler
 import org.apache.commons.csv.CSVFormat
 import org.apache.commons.csv.CSVParser
+import org.apache.http.client.config.RequestConfig
+import org.apache.http.impl.NoConnectionReuseStrategy
+import org.apache.http.impl.client.HttpClients
+import org.apache.http.impl.conn.PoolingHttpClientConnectionManager
 import org.http4k.client.ApacheClient
 import org.http4k.core.BodyMode
 import org.http4k.core.Method
@@ -40,6 +44,7 @@ import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
+import java.util.concurrent.TimeUnit
 
 class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = DefaultAccessTokenHandler()) {
     private val log = KotlinLogging.logger { }
@@ -48,7 +53,22 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
 
     private val client = ApacheClient()
 
-    private val clientStreamingMode = ApacheClient(responseBodyMode = BodyMode.Stream)
+    // Tuning for long-lasting streaming:
+    val longLivedHttpClient = HttpClients.custom()
+        .setConnectionManager(PoolingHttpClientConnectionManager())
+        .setConnectionTimeToLive(1, TimeUnit.HOURS)
+        .setConnectionReuseStrategy(NoConnectionReuseStrategy.INSTANCE) // always use fresh connections
+        .disableContentCompression() // avoid gzip chunking issues
+        .setDefaultRequestConfig(
+            RequestConfig.custom()
+                .setSocketTimeout(60 * 60 * 1000) // 1h read timeout
+                .setConnectTimeout(30_000)
+                .setConnectionRequestTimeout(30_000)
+                .build()
+        )
+        .build()
+
+    private val clientStreamingMode = ApacheClient(longLivedHttpClient, responseBodyMode = BodyMode.Stream)
 
     private val useCache = false
 
