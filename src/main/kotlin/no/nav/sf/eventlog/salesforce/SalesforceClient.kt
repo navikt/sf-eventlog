@@ -408,7 +408,7 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                             } else {
                                 log.info { "Skipped $logCounter of $count events" }
                             }
-                            if (local) Thread.sleep(20) else Thread.sleep(2000) // Pause for 2 seconds
+                            if (local || eventType.messageField.isEmpty()) Thread.sleep(20) else Thread.sleep(2000) // Pause for 2 seconds
                         }
                     }
                 }
