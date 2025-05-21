@@ -255,11 +255,15 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
 
     fun countCsvRows(logFileRequest: Request): Pair<Int, Response> {
         return try {
+            log.info { "Trigger countCsvRows" }
             val response = client(logFileRequest)
             if (response.status.successful) {
+                log.info { "Successful response countCsvRows" }
                 val reader = response.body.stream.reader()
                 val csvParser = CSVParser(reader, CSVFormat.DEFAULT.builder().setSkipHeaderRecord(true).setHeader().build())
+                log.info { "Before count of countCsvRows" }
                 val rowCount = csvParser.records.size // This counts the rows
+                log.info { "countCsvRows result $rowCount" }
                 csvParser.close()
                 reader.close()
                 Pair(rowCount, response)
