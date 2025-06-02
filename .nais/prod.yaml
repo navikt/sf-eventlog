@@ -30,7 +30,7 @@ spec:
       memory: 6Gi
     requests:
       cpu: 10m
-      memory: 512Mi
+      memory: 1Gi
   gcp:
     sqlInstances:
       - type: POSTGRES_16

@@ -103,7 +103,7 @@ class Application {
         if (local) {
             // salesforceClient.fetchLogFiles(EventType.ApexCallout)
             // Normally run via the async TransferJob:
-            salesforceClient.fetchAndProcessEventLogsStreaming(EventType.ApexExecution, LocalDate.parse("2025-05-16"), 0)
+            salesforceClient.fetchAndProcessEventLogsStreaming(EventType.ApexExecution, LocalDate.parse("2025-05-30"), 0)
             // println(salesforceClient.doLimitCall())
             // fetchAndLogHandlerCommon(LocalDate.now().minusDays(1), "ALL")
         }
@@ -125,8 +125,6 @@ class Application {
         }
     }
 
-    var debugValue: Int = 0
-
     private val examineHandler: HttpHandler = {
         val date = LocalDate.parse(it.query("date")!!)
         val eventTypeArg = it.query("eventType")!!
@@ -137,12 +135,37 @@ class Application {
             Response(OK).body("No log rows found of $eventTypeArg for $date")
         } else {
             logFilesForDate.first().let {
-                val responseAndCount = application.salesforceClient.countCsvRows(application.salesforceClient.logFileContentRequest(it.file))
-                // val capturedEvents = application.salesforceClient.fetchLogFileContentAsJson(it.file)
-                Response(OK).body("${responseAndCount.first} log rows found of $eventTypeArg for $date. DEBUG $debugValue")
+                val tmpFile = application.salesforceClient.fetchAndSaveCsvToTempFile(eventType, date, application.salesforceClient.logFileContentRequest(it.file))
+                val count: Int = try {
+                    application.salesforceClient.countCsvRowsFromFile(tmpFile)
+                } finally {
+                    if (tmpFile.exists()) {
+                        val deleted = tmpFile.delete()
+                        if (!deleted) {
+                            log.warn { "Temporary file ${tmpFile.name} could not be deleted." }
+                        }
+                    }
+                }
+                Response(OK).body("$count log rows found of $eventTypeArg for $date.")
             }
         }
     }
+
+    /*
+    val tmpFile = fetchAndSaveCsvToTempFile(eventType, date, logFileContentRequest(it.file))
+                try {
+                    val count = countCsvRowsFromFile(tmpFile)
+                    return processCsvRows(tmpFile, count, date, eventType, skipToRow)
+                } finally {
+                    // 🔧 Delete temp file regardless of success or failure
+                    if (tmpFile.exists()) {
+                        val deleted = tmpFile.delete()
+                        if (!deleted) {
+                            log.warn { "Temporary file ${tmpFile.name} could not be deleted." }
+                        }
+                    }
+                }
+     */
 
     private val appLogFetchHandler: HttpHandler = {
         val date = LocalDate.parse(it.query("date")!!)
