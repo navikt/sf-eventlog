@@ -24,13 +24,12 @@ import org.http4k.routing.ResourceLoader
 import org.http4k.routing.bind
 import org.http4k.routing.routes
 import org.http4k.routing.static
-import org.http4k.server.ApacheServer
 import org.http4k.server.Http4kServer
+import org.http4k.server.Netty
 import org.http4k.server.asServer
 import java.io.File
 import java.lang.IllegalStateException
 import java.time.LocalDate
-import java.util.concurrent.TimeUnit
 
 class Application {
     private val log = KotlinLogging.logger { }
@@ -45,7 +44,7 @@ class Application {
 
     val cluster = env(env_NAIS_CLUSTER_NAME)
 
-    private fun apiServer(port: Int = 8080): Http4kServer = api().asServer(ApacheServer(port))
+    private fun apiServer(port: Int = 8080): Http4kServer = api().asServer(Netty(port))
 
     private fun api(): HttpHandler = routes(
         "/internal/isAlive" bind Method.GET to { Response(OK) },
@@ -120,7 +119,7 @@ class Application {
                 } catch (e: Exception) {
                     log.error(e) { "Error during salesforce limit fetch" }
                 }
-                delay(TimeUnit.MINUTES.toMillis(30)) // 30 minutes delay
+                delay(30 * 60 * 1000) // 30 minutes delay
             }
         }
     }
@@ -150,22 +149,6 @@ class Application {
             }
         }
     }
-
-    /*
-    val tmpFile = fetchAndSaveCsvToTempFile(eventType, date, logFileContentRequest(it.file))
-                try {
-                    val count = countCsvRowsFromFile(tmpFile)
-                    return processCsvRows(tmpFile, count, date, eventType, skipToRow)
-                } finally {
-                    // 🔧 Delete temp file regardless of success or failure
-                    if (tmpFile.exists()) {
-                        val deleted = tmpFile.delete()
-                        if (!deleted) {
-                            log.warn { "Temporary file ${tmpFile.name} could not be deleted." }
-                        }
-                    }
-                }
-     */
 
     private val appLogFetchHandler: HttpHandler = {
         val date = LocalDate.parse(it.query("date")!!)
@@ -198,7 +181,6 @@ class Application {
 
     private fun fetchAndLogHandlerCommon(date: LocalDate, eventTypeArg: String): Response {
         fun handleEventLogs(eventType: EventType): LogSyncStatus {
-            // salesforceClient.logFileDataMap
             val eventLogsForDate = if (local) {
                 null
             } else {

@@ -23,13 +23,10 @@ import no.nav.sf.eventlog.generateLoggingContext
 import no.nav.sf.eventlog.local
 import no.nav.sf.eventlog.token.AccessTokenHandler
 import no.nav.sf.eventlog.token.DefaultAccessTokenHandler
+import okhttp3.OkHttpClient
 import org.apache.commons.csv.CSVFormat
 import org.apache.commons.csv.CSVParser
-import org.apache.http.client.config.RequestConfig
-import org.apache.http.impl.NoConnectionReuseStrategy
-import org.apache.http.impl.client.HttpClients
-import org.apache.http.impl.conn.PoolingHttpClientConnectionManager
-import org.http4k.client.ApacheClient
+import org.http4k.client.OkHttp
 import org.http4k.core.BodyMode
 import org.http4k.core.Method
 import org.http4k.core.Request
@@ -38,37 +35,29 @@ import java.io.FileOutputStream
 import java.lang.Exception
 import java.lang.IllegalStateException
 import java.net.URLEncoder
+import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
-import java.util.concurrent.TimeUnit
 
 class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = DefaultAccessTokenHandler()) {
     private val log = KotlinLogging.logger { }
 
     private val apiVersion = env(config_SALESFORCE_API_VERSION)
 
-    private val client = ApacheClient()
+    private val client = OkHttp()
 
-    // Tuning for long-lasting streaming:
-    val longLivedHttpClient = HttpClients.custom()
-        .setConnectionManager(PoolingHttpClientConnectionManager())
-        .setConnectionTimeToLive(1, TimeUnit.HOURS)
-        .setConnectionReuseStrategy(NoConnectionReuseStrategy.INSTANCE) // always use fresh connections
-        .disableContentCompression() // avoid gzip chunking issues
-        .setDefaultRequestConfig(
-            RequestConfig.custom()
-                .setSocketTimeout(60 * 60 * 1000) // 1h read timeout
-                .setConnectTimeout(30_000)
-                .setConnectionRequestTimeout(30_000)
-                .build()
-        )
+    private val httpClient: OkHttpClient = OkHttpClient.Builder()
+        .connectTimeout(Duration.ofSeconds(60 * 5))
+        .readTimeout(Duration.ofSeconds(60))
+        .writeTimeout(Duration.ofSeconds(60))
+        .retryOnConnectionFailure(false)
         .build()
 
-    private val clientStreamingMode = ApacheClient(longLivedHttpClient, responseBodyMode = BodyMode.Stream)
+    private val clientStreamingMode = OkHttp(client = httpClient, bodyMode = BodyMode.Stream)
 
     private val useCache = false
 
@@ -223,9 +212,6 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
     private fun dateRestrictionExtention(date: LocalDate) =
         " AND LogDate >= ${date}T00:00:00Z AND LogDate < ${date.plusDays(1)}T00:00:00Z"
 
-    // private fun createdDateRestrictionExtention(date: LocalDate) =
-    //    " AND CreatedDate >= ${date}T00:00:00Z AND CreatedDate < ${date.plusDays(1)}T00:00:00Z"
-
     fun createdDateRestrictionExtension(date: LocalDate): String {
         val osloZone = ZoneId.of("Europe/Oslo")
 
@@ -325,40 +311,6 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
             return parser.count()
         }
     }
-
-    /*
-    fun countCsvRows(logFileRequest: Request): Pair<Int, Response> {
-        return try {
-            log.info { "Trigger countCsvRows" }
-            val response = clientStreamingMode(logFileRequest)
-            if (response.status.successful) {
-                val reader = response.body.stream.reader()
-                val csvParser =
-                    CSVParser(reader, CSVFormat.DEFAULT.builder().setSkipHeaderRecord(true).setHeader().build())
-                log.info { "Before count of countCsvRows" }
-                var rowCount = 0
-                for (record in csvParser) {
-                    rowCount++
-                }
-                // val rowCount = csvParser.records.size // This counts the rows
-                log.info { "countCsvRows result $rowCount" }
-                csvParser.close()
-                reader.close()
-                Pair(
-                    rowCount,
-                    clientStreamingMode(logFileRequest)
-                ) // Renew fetch of response since count has used it up
-            } else {
-                log.error("Failed to fetch CSV data for counting rows: ${response.status}")
-                throw IllegalStateException("Error counting CSV rows: ${response.status}")
-            }
-        } catch (e: Exception) {
-            log.error("Error counting CSV rows: ${e.message}")
-            throw IllegalStateException("Error counting CSV rows: ${e.message}")
-        }
-    }
-
-     */
 
     fun processCsvRows(file: File, count: Int, date: LocalDate, eventType: EventType, skipToRow: Int): LogSyncStatus {
         try {

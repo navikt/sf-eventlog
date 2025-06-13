@@ -10,7 +10,6 @@ import no.nav.sf.eventlog.env_AZURE_APP_CLIENT_ID
 import no.nav.sf.eventlog.env_AZURE_APP_WELL_KNOWN_URL
 import org.http4k.core.Request
 import java.net.URL
-import java.util.Optional
 
 object TokenValidation {
     private val jwtTokenValidationHandler = JwtTokenValidationHandler(
@@ -24,7 +23,7 @@ object TokenValidation {
         )
     )
 
-    fun firstValidToken(request: Request): Optional<JwtToken> =
+    fun firstValidToken(request: Request): JwtToken? =
         jwtTokenValidationHandler.getValidatedTokens(request.toNavRequest()).firstValidToken
 
     private fun Request.toNavRequest(): HttpRequest {
@@ -32,9 +31,6 @@ object TokenValidation {
         return object : HttpRequest {
             override fun getHeader(headerName: String): String {
                 return req.header(headerName) ?: ""
-            }
-            override fun getCookies(): Array<HttpRequest.NameValue> {
-                return arrayOf()
             }
         }
     }
