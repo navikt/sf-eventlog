@@ -3,7 +3,7 @@ plugins {
 
     id 'org.jetbrains.kotlin.jvm' version '1.9.24'
     id 'org.jmailen.kotlinter' version '3.2.0'
-    id 'com.github.johnrengelman.shadow' version '8.1.1'
+    id 'com.gradleup.shadow' version '8.3.1'
 }
 
 group 'no.nav.sf.eventlog'
@@ -61,11 +61,6 @@ dependencies {
     implementation "com.zaxxer:HikariCP:3.4.1"
 
     implementation 'com.opencsv:opencsv:5.9'
-
-//    implementation "net.minidev:json-smart:2.4.9" //Desired transient json-smart to token-validation above
-//    implementation "com.nimbusds:nimbus-jose-jwt:9.37.2"
-//    implementation "org.apache.commons:commons-compress:1.26.0" //transient http4k-apache
-//    implementation "org.apache.httpcomponents:httpclient:4.5.13" //Desired transient httpclient to http4k-apache
     implementation "commons-beanutils:commons-beanutils:1.11.0"
 
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.11.4'
