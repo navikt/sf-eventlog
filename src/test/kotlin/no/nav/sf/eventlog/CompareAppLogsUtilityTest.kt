@@ -24,33 +24,38 @@ import java.time.format.DateTimeFormatter
  * Uncomment @Test below and run, disable after use
  */
 class CompareAppLogsUtilityTest {
-
     // Use file names ignored via .gitignore
-    val CSV_FROM_ADEO = "/Scratch_logadeo17mars.csv"
-    val JSON_ARRAY_FROM_SOQL = "/Scratch_records17mars.json"
+    val csvFromAdeo = "/Scratch_logadeo17mars.csv"
+    val jsonArrayFromSOQL = "/Scratch_records17mars.json"
 
     // @Test
-    fun `add test cases`() {
+    fun addTestCases() {
+        val gson =
+            GsonBuilder()
+                .registerTypeAdapter(LocalDateTime::class.java, LocalDateTimeFromSFStampDeserializer())
+                .registerTypeAdapter(LocalDateTime::class.java, LocalDateTimeSerializer())
+                .create()
 
-        val gson = GsonBuilder()
-            .registerTypeAdapter(LocalDateTime::class.java, LocalDateTimeFromSFStampDeserializer())
-            .registerTypeAdapter(LocalDateTime::class.java, LocalDateTimeSerializer())
-            .create()
+        val csvLogAdeo = readResourceFile(csvFromAdeo)
 
-        val csvLogAdeo = readResourceFile(CSV_FROM_ADEO)
-
-        val jsonRecords = readResourceFile(JSON_ARRAY_FROM_SOQL)
+        val jsonRecords = readResourceFile(jsonArrayFromSOQL)
 
         val logAdeoListFromCSV: List<AppRecordPartialLocalDate> = parseCsvLogs(csvLogAdeo)
         val secondJsonArray = JsonParser.parseString(jsonRecords).asJsonArray
-        val recordsList: List<AppRecordPartialLocalDate> = gson.fromJson(secondJsonArray, Array<AppRecordPartialLocalDate>::class.java).toList()
+        val recordsList: List<AppRecordPartialLocalDate> =
+            gson
+                .fromJson(
+                    secondJsonArray,
+                    Array<AppRecordPartialLocalDate>::class.java,
+                ).toList()
 
         // Match function
-        fun recordsMatch(r1: AppRecordPartialLocalDate, r2: AppRecordPartialLocalDate): Boolean {
+        fun recordsMatch(
+            r1: AppRecordPartialLocalDate,
+            r2: AppRecordPartialLocalDate,
+        ): Boolean {
             // Helper function to treat null and "-" as an empty string
-            fun compareNullAsEmpty(value: String?): String {
-                return value.let { if (it == "-") "" else value } ?: ""
-            }
+            fun compareNullAsEmpty(value: String?): String = value.let { if (it == "-") "" else value } ?: ""
 
             // Compare fields, treating null as empty string
             val timeDiff = abs(r1.CreatedDate.toEpochSecond(ZoneOffset.UTC) - r2.CreatedDate.toEpochSecond(ZoneOffset.UTC))
@@ -111,9 +116,10 @@ class CompareAppLogsUtilityTest {
             mismatchesList2.forEach { println(gson.toJson(it)) }
         }
 
-        val groupedRecords = mismatchesList2.groupBy {
-            Triple(it.Application_Domain__c, it.Source_Class__c, it.Source_Function__c)
-        }
+        val groupedRecords =
+            mismatchesList2.groupBy {
+                Triple(it.Application_Domain__c, it.Source_Class__c, it.Source_Function__c)
+            }
 
         println("Reference value: ${mismatchesList.size} (should be 0)")
 
@@ -121,7 +127,9 @@ class CompareAppLogsUtilityTest {
         // Print statistics for each group
         groupedRecords.forEach { (key, list) ->
             val (domain, sourceClass, sourceFunction) = key
-            println("Application_Domain__c: $domain, Source_Class__c: $sourceClass, Source_Function__c: $sourceFunction - Count: ${list.size}")
+            println(
+                "Application_Domain__c: $domain, Source_Class__c: $sourceClass, Source_Function__c: $sourceFunction - Count: ${list.size}",
+            )
         }
     }
 }

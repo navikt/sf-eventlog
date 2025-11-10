@@ -17,7 +17,7 @@ data class LogSyncStatus(
     val eventType: String,
     val status: String,
     val message: String,
-    val lastModified: LocalDateTime
+    val lastModified: LocalDateTime,
 )
 
 object LogSyncStatusTable : Table("log_sync_status") {
@@ -32,20 +32,21 @@ object LogSyncStatusTable : Table("log_sync_status") {
     }
 }
 
-fun ResultRow.toLogSyncStatus() = LogSyncStatus(
-    syncDate = this[LogSyncStatusTable.syncDate],
-    eventType = this[LogSyncStatusTable.eventType],
-    status = this[LogSyncStatusTable.status],
-    message = this[LogSyncStatusTable.message],
-    lastModified = this[LogSyncStatusTable.lastModified]
-)
+fun ResultRow.toLogSyncStatus() =
+    LogSyncStatus(
+        syncDate = this[LogSyncStatusTable.syncDate],
+        eventType = this[LogSyncStatusTable.eventType],
+        status = this[LogSyncStatusTable.status],
+        message = this[LogSyncStatusTable.message],
+        lastModified = this[LogSyncStatusTable.lastModified],
+    )
 
 data class LogSyncProgress(
     val syncDate: LocalDate,
     val eventType: String,
     val progress: Int,
     val goal: Int,
-    val lastModified: LocalDateTime
+    val lastModified: LocalDateTime,
 )
 
 object LogSyncProgressTable : Table("log_sync_progress") {
@@ -60,24 +61,26 @@ object LogSyncProgressTable : Table("log_sync_progress") {
     }
 }
 
-fun ResultRow.toLogSyncProgress() = LogSyncProgress(
-    syncDate = this[LogSyncProgressTable.syncDate],
-    eventType = this[LogSyncProgressTable.eventType],
-    progress = this[LogSyncProgressTable.progress],
-    goal = this[LogSyncProgressTable.goal],
-    lastModified = this[LogSyncProgressTable.lastModified]
-)
+fun ResultRow.toLogSyncProgress() =
+    LogSyncProgress(
+        syncDate = this[LogSyncProgressTable.syncDate],
+        eventType = this[LogSyncProgressTable.eventType],
+        progress = this[LogSyncProgressTable.progress],
+        goal = this[LogSyncProgressTable.goal],
+        lastModified = this[LogSyncProgressTable.lastModified],
+    )
 
 fun retrieveLogSyncStatusesAsMapMock(): MutableMap<EventType, MutableMap<LocalDate, LogSyncStatus>> {
     // Example hardcoded data
-    val logSyncStatusList = listOf(
-        LogSyncStatus(
-            syncDate = LocalDate.of(2024, 12, 1),
-            eventType = "ApexUnexpectedException",
-            status = "SUCCESS",
-            message = "Sync started successfully. A",
-            lastModified = LocalDateTime.of(2024, 12, 1, 10, 0, 0, 0)
-        ),
+    val logSyncStatusList =
+        listOf(
+            LogSyncStatus(
+                syncDate = LocalDate.of(2024, 12, 1),
+                eventType = "ApexUnexpectedException",
+                status = "SUCCESS",
+                message = "Sync started successfully. A",
+                lastModified = LocalDateTime.of(2024, 12, 1, 10, 0, 0, 0),
+            ),
 //        LogSyncStatus(
 //            syncDate = LocalDate.of(2024, 12, 2),
 //            eventType = "FlowExecution",
@@ -85,13 +88,13 @@ fun retrieveLogSyncStatusesAsMapMock(): MutableMap<EventType, MutableMap<LocalDa
 //            message = "Sync failed due to an error. B",
 //            lastModified = LocalDateTime.of(2024, 12, 2, 12, 30, 0, 0)
 //        ),
-        LogSyncStatus(
-            syncDate = LocalDate.of(2024, 12, 3),
-            eventType = "ApexUnexpectedException",
-            status = "SUCCESS",
-            message = "Sync started successfully. C",
-            lastModified = LocalDateTime.of(2024, 12, 3, 9, 0, 0, 0)
-        ),
+            LogSyncStatus(
+                syncDate = LocalDate.of(2024, 12, 3),
+                eventType = "ApexUnexpectedException",
+                status = "SUCCESS",
+                message = "Sync started successfully. C",
+                lastModified = LocalDateTime.of(2024, 12, 3, 9, 0, 0, 0),
+            ),
 //        LogSyncStatus(
 //            syncDate = LocalDate.of(2024, 12, 3),
 //            eventType = "FlowExecution",
@@ -106,7 +109,7 @@ fun retrieveLogSyncStatusesAsMapMock(): MutableMap<EventType, MutableMap<LocalDa
 //            message = "Old success E",
 //            lastModified = LocalDateTime.of(2024, 12, 3, 12, 0, 0, 0)
 //        )
-    )
+        )
 
     // Group by eventType and convert to a map with EventType as the key
     return logSyncStatusList
@@ -117,8 +120,7 @@ fun retrieveLogSyncStatusesAsMapMock(): MutableMap<EventType, MutableMap<LocalDa
                 .sortedByDescending { it.syncDate } // Sort by syncDate
                 .associateBy { it.syncDate } // Associate by syncDate to create the inner map
                 .toMutableMap() // Convert to a mutable map
-        }
-        .toMutableMap()
+        }.toMutableMap()
 }
 
 fun getMetaData(): String {
@@ -136,73 +138,88 @@ fun getMetaData(): String {
     logFileDataMap.forEach { (eventType, logFileData) ->
         val eventLogSyncStatuses = logSyncStatuses[eventType] ?: mutableMapOf()
 
-        val olderLogSyncStatuses = eventLogSyncStatuses.entries
-            .filter { it.key !in last30Days }
-            .map { it.value }
-            .sortedByDescending { it.syncDate }
+        val olderLogSyncStatuses =
+            eventLogSyncStatuses.entries
+                .filter { it.key !in last30Days }
+                .map { it.value }
+                .sortedByDescending { it.syncDate }
 
         // Combine existing LogSyncStatus with synthetic entries for gaps in the last 30 days
-        val logSyncDataForEvent = last30Days.map { date ->
-            eventLogSyncStatuses[date] // No change to existing Status
-                ?: if (logFileData.any { it.date == date }) {
-                    // If no log exists but the log file exists for this date, generate a synthetic log
-                    createUnprocessedStatus(date, eventType)
-                } else {
-                    // If no log file exists for this date, generate a synthetic log
-                    createNoLogfileStatus(date, eventType)
-                }
-        }
+        val logSyncDataForEvent =
+            last30Days.map { date ->
+                eventLogSyncStatuses[date] // No change to existing Status
+                    ?: if (logFileData.any { it.date == date }) {
+                        // If no log exists but the log file exists for this date, generate a synthetic log
+                        createUnprocessedStatus(date, eventType)
+                    } else {
+                        // If no log file exists for this date, generate a synthetic log
+                        createNoLogfileStatus(date, eventType)
+                    }
+            }
 
         // Add the generated data to the result map, making sure to keep logs that are older than 30 days
-        result[eventType] = (olderLogSyncStatuses + logSyncDataForEvent)
-            .sortedByDescending { it.syncDate } // Ensure the final list is sorted by syncDate
+        result[eventType] =
+            (olderLogSyncStatuses + logSyncDataForEvent)
+                .sortedByDescending { it.syncDate } // Ensure the final list is sorted by syncDate
     }
 
     // Convert the result map to JSON using Gson
     return application.gson.toJson(result)
 }
 
-fun createNoLogfileStatus(date: LocalDate, eventType: EventType) =
-    LogSyncStatus(
-        syncDate = date,
-        eventType = eventType.name,
-        status = "NO_LOGFILE",
-        message = if (date == LocalDate.now()) "No log file for today has been generated yet" else "No log file exists for date $date",
-        lastModified = LocalDateTime.now()
-    )
+fun createNoLogfileStatus(
+    date: LocalDate,
+    eventType: EventType,
+) = LogSyncStatus(
+    syncDate = date,
+    eventType = eventType.name,
+    status = "NO_LOGFILE",
+    message = if (date == LocalDate.now()) "No log file for today has been generated yet" else "No log file exists for date $date",
+    lastModified = LocalDateTime.now(),
+)
 
-fun createUnprocessedStatus(date: LocalDate, eventType: EventType) =
-    LogSyncStatus(
-        syncDate = date,
-        eventType = eventType.name,
-        status = "UNPROCESSED",
-        message = "Not yet processed",
-        lastModified = LocalDateTime.now()
-    )
+fun createUnprocessedStatus(
+    date: LocalDate,
+    eventType: EventType,
+) = LogSyncStatus(
+    syncDate = date,
+    eventType = eventType.name,
+    status = "UNPROCESSED",
+    message = "Not yet processed",
+    lastModified = LocalDateTime.now(),
+)
 
-fun createProcessingStatus(date: LocalDate, eventType: EventType) =
-    LogSyncStatus(
-        syncDate = date,
-        eventType = eventType.name,
-        status = "PROCESSING",
-        message = "Processing",
-        lastModified = LocalDateTime.now()
-    )
+fun createProcessingStatus(
+    date: LocalDate,
+    eventType: EventType,
+) = LogSyncStatus(
+    syncDate = date,
+    eventType = eventType.name,
+    status = "PROCESSING",
+    message = "Processing",
+    lastModified = LocalDateTime.now(),
+)
 
-fun createFailureStatus(date: LocalDate, eventType: EventType, message: String) =
-    LogSyncStatus(
-        syncDate = date,
-        eventType = eventType.name,
-        status = "FAILURE",
-        message = message,
-        lastModified = LocalDateTime.now()
-    )
+fun createFailureStatus(
+    date: LocalDate,
+    eventType: EventType,
+    message: String,
+) = LogSyncStatus(
+    syncDate = date,
+    eventType = eventType.name,
+    status = "FAILURE",
+    message = message,
+    lastModified = LocalDateTime.now(),
+)
 
-fun createSuccessStatus(date: LocalDate, eventType: EventType, message: String) =
-    LogSyncStatus(
-        syncDate = date,
-        eventType = eventType.name,
-        status = "SUCCESS",
-        message = message,
-        lastModified = LocalDateTime.now()
-    )
+fun createSuccessStatus(
+    date: LocalDate,
+    eventType: EventType,
+    message: String,
+) = LogSyncStatus(
+    syncDate = date,
+    eventType = eventType.name,
+    status = "SUCCESS",
+    message = message,
+    lastModified = LocalDateTime.now(),
+)

@@ -68,22 +68,19 @@ object PostgresDatabase {
     // That is handled via transaction {} ensuring connections are opened and closed properly
     val database = Database.connect(HikariDataSource(hikariConfig()))
 
-    private fun hikariConfig(): HikariConfig = HikariConfig().apply {
-        jdbcUrl = dbJdbcUrl // "jdbc:postgresql://localhost:$dbPort/$dbName" // This is where the cloud db proxy is located in the pod
-        driverClassName = "org.postgresql.Driver"
-//        addDataSourceProperty("serverName", dbHost)
-//        addDataSourceProperty("port", dbPort)
-//        addDataSourceProperty("databaseName", dbName)
-//        addDataSourceProperty("user", dbUsername)
-//        addDataSourceProperty("password", dbPassword)
-        minimumIdle = 1
-        maxLifetime = 26000
-        maximumPoolSize = 10
-        connectionTimeout = 250
-        idleTimeout = 10000
-        isAutoCommit = false
-        transactionIsolation = "TRANSACTION_REPEATABLE_READ" // Isolation level that ensure the same snapshot of db during one transaction
-    }
+    private fun hikariConfig(): HikariConfig =
+        HikariConfig().apply {
+            jdbcUrl = dbJdbcUrl // "jdbc:postgresql://localhost:$dbPort/$dbName" // This is where the cloud db proxy is located in the pod
+            driverClassName = "org.postgresql.Driver"
+            minimumIdle = 1
+            maxLifetime = 26000
+            maximumPoolSize = 10
+            connectionTimeout = 250
+            idleTimeout = 10000
+            isAutoCommit = false
+            // Isolation level that ensure the same snapshot of db during one transaction:
+            transactionIsolation = "TRANSACTION_REPEATABLE_READ"
+        }
 
     fun createStatusTable(dropFirst: Boolean = false) {
         transaction {
@@ -115,19 +112,19 @@ object PostgresDatabase {
         }
     }
 
-    fun upsertLogSyncStatus(logSyncStatus: LogSyncStatus): LogSyncStatus? {
-        return upsertLogSyncStatus(logSyncStatus.syncDate, logSyncStatus.eventType, logSyncStatus.status, logSyncStatus.message)
-    }
+    fun upsertLogSyncStatus(logSyncStatus: LogSyncStatus): LogSyncStatus? =
+        upsertLogSyncStatus(logSyncStatus.syncDate, logSyncStatus.eventType, logSyncStatus.status, logSyncStatus.message)
+
     // Upsert function for LogSyncStatus
     fun upsertLogSyncStatus(
         syncDate: LocalDate,
         eventType: String,
         status: String,
-        message: String
-    ): LogSyncStatus? {
-        return transaction {
+        message: String,
+    ): LogSyncStatus? =
+        transaction {
             LogSyncStatusTable.upsert(
-                keys = arrayOf(LogSyncStatusTable.syncDate, LogSyncStatusTable.eventType) // Perform update if there is a conflict here
+                keys = arrayOf(LogSyncStatusTable.syncDate, LogSyncStatusTable.eventType), // Perform update if there is a conflict here
             ) {
                 it[LogSyncStatusTable.syncDate] = syncDate
                 it[LogSyncStatusTable.eventType] = eventType
@@ -136,18 +133,17 @@ object PostgresDatabase {
                 it[LogSyncStatusTable.lastModified] = LocalDateTime.now()
             }
         }.resultedValues?.firstOrNull()?.toLogSyncStatus()
-    }
 
     // Upsert function for LogSyncProgress
     fun upsertLogSyncProgress(
         syncDate: LocalDate,
         eventType: String,
         progress: Int,
-        goal: Int
-    ): LogSyncProgress? {
-        return transaction {
+        goal: Int,
+    ): LogSyncProgress? =
+        transaction {
             LogSyncProgressTable.upsert(
-                keys = arrayOf(LogSyncProgressTable.syncDate, LogSyncProgressTable.eventType) // Perform update if there is a conflict here
+                keys = arrayOf(LogSyncProgressTable.syncDate, LogSyncProgressTable.eventType), // Perform update if there is a conflict here
             ) {
                 it[LogSyncProgressTable.syncDate] = syncDate
                 it[LogSyncProgressTable.eventType] = eventType
@@ -156,7 +152,6 @@ object PostgresDatabase {
                 it[LogSyncProgressTable.lastModified] = LocalDateTime.now()
             }
         }.resultedValues?.firstOrNull()?.toLogSyncProgress()
-    }
 
     // Function to delete rows with lastModified older than <thresholdDays> days
     fun deleteOldLogSyncStatuses(thresholdDays: Long = 100): Int {
@@ -167,7 +162,10 @@ object PostgresDatabase {
     }
 
     // Function to delete a row
-    fun deleteLogSyncStatus(date: LocalDate, eventType: EventType) {
+    fun deleteLogSyncStatus(
+        date: LocalDate,
+        eventType: EventType,
+    ) {
         transaction {
             LogSyncStatusTable.deleteWhere {
                 (LogSyncStatusTable.syncDate eq date) and (LogSyncStatusTable.eventType eq eventType.name)
@@ -176,27 +174,27 @@ object PostgresDatabase {
         clearCache()
     }
 
-    private fun retrieveLogSyncStatusesAsMap(): MutableMap<EventType, MutableMap<LocalDate, LogSyncStatus>> {
-        return transaction {
-            LogSyncStatusTable.selectAll()
+    private fun retrieveLogSyncStatusesAsMap(): MutableMap<EventType, MutableMap<LocalDate, LogSyncStatus>> =
+        transaction {
+            LogSyncStatusTable
+                .selectAll()
                 .map { it.toLogSyncStatus() }
                 .groupBy { EventType.valueOf(it.eventType) }
                 .mapValues { entry ->
                     entry.value.associateBy { it.syncDate }.toMutableMap()
                 }.toMutableMap()
         }
-    }
 
-    fun retrieveLogSyncProgressesAsMap(): MutableMap<EventType, MutableMap<LocalDate, LogSyncProgress>> {
-        return transaction {
-            LogSyncProgressTable.selectAll()
+    fun retrieveLogSyncProgressesAsMap(): MutableMap<EventType, MutableMap<LocalDate, LogSyncProgress>> =
+        transaction {
+            LogSyncProgressTable
+                .selectAll()
                 .map { it.toLogSyncProgress() }
                 .groupBy { EventType.valueOf(it.eventType) }
                 .mapValues { entry ->
                     entry.value.associateBy { it.syncDate }.toMutableMap()
                 }.toMutableMap()
         }
-    }
 
     fun deleteLogSyncProgressRow(logSyncProgress: LogSyncProgress) {
         transaction {

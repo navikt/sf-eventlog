@@ -1,3 +1,5 @@
+@file:Suppress("ktlint:standard:filename", "ktlint:standard:property-naming")
+
 package no.nav.sf.eventlog
 
 import java.io.File
@@ -28,9 +30,10 @@ const val config_CONTEXT = "CONTEXT"
 /**
  * Shortcut for fetching environment variables
  */
-fun env(name: String): String = System.getenv(name)
-    ?: localEnvProperties?.getProperty(name)
-    ?: throw NullPointerException("Missing env $name")
+fun env(name: String): String =
+    System.getenv(name)
+        ?: localEnvProperties?.getProperty(name)
+        ?: throw NullPointerException("Missing env $name")
 
 val isLocal: Boolean = System.getenv(env_NAIS_APP_NAME) == null
 val localEnvProperties: Properties? = if (isLocal) loadLocalEnvProperties() else null

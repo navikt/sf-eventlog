@@ -46,27 +46,31 @@ class Application {
 
     private fun apiServer(port: Int = 8080): Http4kServer = api().asServer(Netty(port))
 
-    private fun api(): HttpHandler = routes(
-        "/internal/isAlive" bind Method.GET to { Response(OK) },
-        "/internal/isReady" bind Method.GET to { Response(OK) },
-        "/internal/metrics" bind Method.GET to Metrics.metricsHttpHandler,
-        "/internal/fetchAndLog" bind Method.GET to fetchAndLogHandler,
-        "/internal/fetchAndLogYesterday" bind Method.GET to fetchAndLogYesterdayHandler,
-        "/internal/test" bind Method.GET to { request -> log.info { "Test path is called with URL: ${request.uri}" }; Response(OK) },
-        "/internal/examine" bind Method.GET to examineHandler,
-        "/internal/applogfetch" bind Method.GET to appLogFetchHandler,
-        "/internal/gui" bind Method.GET to static(ResourceLoader.Classpath("gui")),
-        "/internal/guiLabel" bind Method.GET to { Response(OK).body(context) },
-        "/internal/metadata" bind Method.GET to metaDataHandler,
-        "/internal/clearCaches" bind Method.GET to {
-            salesforceClient.clearCache()
-            PostgresDatabase.clearCache()
-            Response(OK).body("Caches cleared")
-        },
-        "/internal/clearStatus" bind Method.GET to clearStatusHandler,
-        "/internal/transferStatus" bind Method.GET to TransferJob.statusHandler,
-        "/internal/limits" bind Method.GET to limitHandler
-    )
+    private fun api(): HttpHandler =
+        routes(
+            "/internal/isAlive" bind Method.GET to { Response(OK) },
+            "/internal/isReady" bind Method.GET to { Response(OK) },
+            "/internal/metrics" bind Method.GET to Metrics.metricsHttpHandler,
+            "/internal/fetchAndLog" bind Method.GET to fetchAndLogHandler,
+            "/internal/fetchAndLogYesterday" bind Method.GET to fetchAndLogYesterdayHandler,
+            "/internal/test" bind Method.GET to { request ->
+                log.info { "Test path is called with URL: ${request.uri}" }
+                Response(OK)
+            },
+            "/internal/examine" bind Method.GET to examineHandler,
+            "/internal/applogfetch" bind Method.GET to appLogFetchHandler,
+            "/internal/gui" bind Method.GET to static(ResourceLoader.Classpath("gui")),
+            "/internal/guiLabel" bind Method.GET to { Response(OK).body(context) },
+            "/internal/metadata" bind Method.GET to metaDataHandler,
+            "/internal/clearCaches" bind Method.GET to {
+                salesforceClient.clearCache()
+                PostgresDatabase.clearCache()
+                Response(OK).body("Caches cleared")
+            },
+            "/internal/clearStatus" bind Method.GET to clearStatusHandler,
+            "/internal/transferStatus" bind Method.GET to TransferJob.statusHandler,
+            "/internal/limits" bind Method.GET to limitHandler,
+        )
 
     fun start() {
         log.info { "Starting in cluster $cluster" }
@@ -77,7 +81,9 @@ class Application {
             progressMap.forEach {
                 it.value.filter { it.value.progress != it.value.goal }.map { it.value }.forEach {
                     if (TransferJob.active) {
-                        log.info { "Will put off pickup job of ${it.eventType} for ${it.syncDate}, from ${it.progress} to ${it.goal} since already busy" }
+                        log.info {
+                            "Will put off pickup job of ${it.eventType} for ${it.syncDate}, from ${it.progress} to ${it.goal} since already busy"
+                        }
                     } else {
                         log.info { "Starting job pickup on ${it.eventType} for ${it.syncDate}, from ${it.progress} to ${it.goal}" }
                         TransferJob.activateTransferJob(it.syncDate, EventType.valueOf(it.eventType), it.progress)
@@ -95,7 +101,7 @@ class Application {
             Thread {
                 log.info { "Shutting down gracefully..." }
                 scope.cancel()
-            }
+            },
         )
 
         // PostgresDatabase.createProgressTable()
@@ -134,17 +140,23 @@ class Application {
             Response(OK).body("No log rows found of $eventTypeArg for $date")
         } else {
             logFilesForDate.first().let {
-                val tmpFile = application.salesforceClient.fetchAndSaveCsvToTempFile(eventType, date, application.salesforceClient.logFileContentRequest(it.file))
-                val count: Int = try {
-                    application.salesforceClient.countCsvRowsFromFile(tmpFile)
-                } finally {
-                    if (tmpFile.exists()) {
-                        val deleted = tmpFile.delete()
-                        if (!deleted) {
-                            log.warn { "Temporary file ${tmpFile.name} could not be deleted." }
+                val tmpFile =
+                    application.salesforceClient.fetchAndSaveCsvToTempFile(
+                        eventType,
+                        date,
+                        application.salesforceClient.logFileContentRequest(it.file),
+                    )
+                val count: Int =
+                    try {
+                        application.salesforceClient.countCsvRowsFromFile(tmpFile)
+                    } finally {
+                        if (tmpFile.exists()) {
+                            val deleted = tmpFile.delete()
+                            if (!deleted) {
+                                log.warn { "Temporary file ${tmpFile.name} could not be deleted." }
+                            }
                         }
                     }
-                }
                 Response(OK).body("$count log rows found of $eventTypeArg for $date.")
             }
         }
@@ -152,7 +164,11 @@ class Application {
 
     private val appLogFetchHandler: HttpHandler = {
         val date = LocalDate.parse(it.query("date")!!)
-        Response(OK).body("Application log stats for $date (error, critical): ${application.salesforceClient.fetchApplicationLogsForDateFromRest(date)}")
+        Response(
+            OK,
+        ).body(
+            "Application log stats for $date (error, critical): ${application.salesforceClient.fetchApplicationLogsForDateFromRest(date)}",
+        )
     }
 
     private val clearStatusHandler: HttpHandler = {
@@ -179,13 +195,17 @@ class Application {
         fetchAndLogHandlerCommon(date, "ALL")
     }
 
-    private fun fetchAndLogHandlerCommon(date: LocalDate, eventTypeArg: String): Response {
+    private fun fetchAndLogHandlerCommon(
+        date: LocalDate,
+        eventTypeArg: String,
+    ): Response {
         fun handleEventLogs(eventType: EventType): LogSyncStatus {
-            val eventLogsForDate = if (local) {
-                null
-            } else {
-                PostgresDatabase.logSyncStatusMap[eventType]?.get(date)
-            }
+            val eventLogsForDate =
+                if (local) {
+                    null
+                } else {
+                    PostgresDatabase.logSyncStatusMap[eventType]?.get(date)
+                }
             return if (!salesforceClient.isLogFileToFetch(date, eventType)) {
                 log.info { "Skipping performing fetch and log on $eventType for $date - No log file in Salesforce" }
                 createNoLogfileStatus(date, eventType)
@@ -203,22 +223,23 @@ class Application {
         }
         return if (eventTypeArg == "ALL") {
             log.info { "Will fetch event logs for ALL event types (${EventType.values().joinToString(",") { it.name }}) for $date" }
-            val result = EventType.values().map {
-                log.info { "In $it, start handling" }
-                var status = handleEventLogs(it)
-                if (status.status == "PROCESSING") {
-                    // Use the pollStatus (same as gui) do determine if current eventType job has finished
-                    // status == null is when async tread is not yet launched so the job has not started yet
-                    while (TransferJob.pollStatus(date, it).status == Status.ACCEPTED || TransferJob.status == null) {
-                        log.info { "In $it, Transfer ALL in progress, sleep 10 s" }
-                        Thread.sleep(10000)
+            val result =
+                EventType.values().map {
+                    log.info { "In $it, start handling" }
+                    var status = handleEventLogs(it)
+                    if (status.status == "PROCESSING") {
+                        // Use the pollStatus (same as gui) do determine if current eventType job has finished
+                        // status == null is when async tread is not yet launched so the job has not started yet
+                        while (TransferJob.pollStatus(date, it).status == Status.ACCEPTED || TransferJob.status == null) {
+                            log.info { "In $it, Transfer ALL in progress, sleep 10 s" }
+                            Thread.sleep(10000)
+                        }
+                        log.info { "In $it, Done waiting will use job status ${TransferJob.status ?: "Null state!!"}" }
+                        status = TransferJob.status!!
                     }
-                    log.info { "In $it, Done waiting will use job status ${TransferJob.status ?: "Null state!!"}" }
-                    status = TransferJob.status!!
+                    log.info { "In $it, returning status $status" }
+                    status
                 }
-                log.info { "In $it, returning status $status" }
-                status
-            }
             Response(OK).body(gson.toJson(result))
         } else {
             val result = handleEventLogs(EventType.valueOf(eventTypeArg))

@@ -8,7 +8,11 @@ import java.lang.reflect.Type
 import java.time.LocalDateTime
 
 class LocalDateTimeSerializer : JsonSerializer<LocalDateTime> {
-    override fun serialize(src: LocalDateTime, typeOfSrc: Type, context: JsonSerializationContext): JsonElement {
+    override fun serialize(
+        src: LocalDateTime,
+        typeOfSrc: Type,
+        context: JsonSerializationContext,
+    ): JsonElement {
         // Just call toString() to get the default ISO-8601 format
         return JsonPrimitive(src.toString())
     }

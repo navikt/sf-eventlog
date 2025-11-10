@@ -19,7 +19,11 @@ object TransferJob {
     var progress: Int = 0
     var goal: Int = 0
 
-    fun activateTransferJob(date: LocalDate, eventType: EventType, skipToRow: Int = 1) {
+    fun activateTransferJob(
+        date: LocalDate,
+        eventType: EventType,
+        skipToRow: Int = 1,
+    ) {
         if (active) throw IllegalStateException("Cannot activate new job transfer since one is already active")
         active = true
         status = null
@@ -28,18 +32,23 @@ object TransferJob {
         }
     }
 
-    fun runTransferJob(date: LocalDate, eventType: EventType, skipToRow: Int = 1) {
+    fun runTransferJob(
+        date: LocalDate,
+        eventType: EventType,
+        skipToRow: Int = 1,
+    ) {
         transferDate = date
         transferEventType = eventType
-        status = try {
-            application.salesforceClient.fetchAndProcessEventLogsStreaming(eventType, date, skipToRow)
-        } catch (e: Exception) {
-            createFailureStatus(date, eventType, "Exception " + e.message + " : " + e.stackTraceToString())
-        } finally {
-            active = false
-            goal = 0
-            progress = 0
-        }
+        status =
+            try {
+                application.salesforceClient.fetchAndProcessEventLogsStreaming(eventType, date, skipToRow)
+            } catch (e: Exception) {
+                createFailureStatus(date, eventType, "Exception " + e.message + " : " + e.stackTraceToString())
+            } finally {
+                active = false
+                goal = 0
+                progress = 0
+            }
     }
 
     val statusHandler: HttpHandler = {
@@ -48,8 +57,11 @@ object TransferJob {
         pollStatus(date, eventType)
     }
 
-    fun pollStatus(date: LocalDate, eventType: EventType): Response {
-        return if (eventType == transferEventType && date == transferDate) {
+    fun pollStatus(
+        date: LocalDate,
+        eventType: EventType,
+    ): Response =
+        if (eventType == transferEventType && date == transferDate) {
             if (!active && status != null) {
                 Response(Status.OK).body(application.gson.toJson(status))
             } else if (active) {
@@ -64,5 +76,4 @@ object TransferJob {
         } else {
             Response(Status.BAD_REQUEST).body("Not set to transfer mode for given eventType ${eventType.name} and date $date")
         }
-    }
 }

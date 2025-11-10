@@ -43,19 +43,23 @@ import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
-class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = DefaultAccessTokenHandler()) {
+class SalesforceClient(
+    private val accessTokenHandler: AccessTokenHandler = DefaultAccessTokenHandler(),
+) {
     private val log = KotlinLogging.logger { }
 
     private val apiVersion = env(config_SALESFORCE_API_VERSION)
 
     private val client = OkHttp()
 
-    private val httpClient: OkHttpClient = OkHttpClient.Builder()
-        .connectTimeout(Duration.ofSeconds(60 * 5))
-        .readTimeout(Duration.ofSeconds(60))
-        .writeTimeout(Duration.ofSeconds(60))
-        .retryOnConnectionFailure(false)
-        .build()
+    private val httpClient: OkHttpClient =
+        OkHttpClient
+            .Builder()
+            .connectTimeout(Duration.ofSeconds(60 * 5))
+            .readTimeout(Duration.ofSeconds(60))
+            .writeTimeout(Duration.ofSeconds(60))
+            .retryOnConnectionFailure(false)
+            .build()
 
     private val clientStreamingMode = OkHttp(client = httpClient, bodyMode = BodyMode.Stream)
 
@@ -78,15 +82,19 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                 log.info { "Using log file dates cache" }
             } else {
                 log.info { "${if (useCache) "Cache invalid : " else ""}Fetching log file dates" }
-                logFileDataCache = EventType.values().associateWith { eventType ->
-                    fetchLogFiles(eventType)
-                }
+                logFileDataCache =
+                    EventType.values().associateWith { eventType ->
+                        fetchLogFiles(eventType)
+                    }
                 logFileCacheLastUpdated = LocalDateTime.now()
             }
             return logFileDataCache
         }
 
-    private fun isTimeInAllowedRange(cacheTime: LocalTime, currentTime: LocalTime): Boolean {
+    private fun isTimeInAllowedRange(
+        cacheTime: LocalTime,
+        currentTime: LocalTime,
+    ): Boolean {
         val morningCutoff = LocalTime.of(12, 30)
         val afternoonStart = LocalTime.of(13, 30)
 
@@ -96,10 +104,16 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
         return bothMorning || bothAfternoon
     }
 
-    fun isLogFileToFetch(date: LocalDate, eventType: EventType): Boolean =
-        logFileDataMap[eventType]?.any { it.date == date } == true
+    fun isLogFileToFetch(
+        date: LocalDate,
+        eventType: EventType,
+    ): Boolean = logFileDataMap[eventType]?.any { it.date == date } == true
 
-    fun fetchAndSaveCsvToTempFile(eventType: EventType, date: LocalDate, request: Request): File {
+    fun fetchAndSaveCsvToTempFile(
+        eventType: EventType,
+        date: LocalDate,
+        request: Request,
+    ): File {
         val response = clientStreamingMode(request)
         if (!response.status.successful) {
             throw IllegalStateException("Failed to fetch CSV data: ${response.status}")
@@ -114,7 +128,11 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
         return tempFile
     }
 
-    fun fetchAndProcessEventLogsStreaming(eventType: EventType, date: LocalDate, skipToRow: Int): LogSyncStatus {
+    fun fetchAndProcessEventLogsStreaming(
+        eventType: EventType,
+        date: LocalDate,
+        skipToRow: Int,
+    ): LogSyncStatus {
         log.info { "Will fetch event logs for ${eventType.name} $date" + (if (skipToRow > 1) " but skip to row $skipToRow" else "") }
         try {
             val logFilesForDate = logFileDataMap[eventType]?.filter { it.date == date } ?: listOf()
@@ -158,9 +176,14 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
      *  - logDate - which date to fetch logfile for, if null that means fetch all (typically last 30 days)
      *  - fieldOfInterest - which field is i
      */
-    fun fetchLogFiles(eventType: EventType, logDate: LocalDate? = null, verbose: Boolean = false): List<LogFileData> {
-        val soqlQuery = "SELECT Id, EventType, LogFile, LogDate FROM EventLogFile WHERE EventType='${eventType.name}'" +
-            (logDate?.let { dateRestrictionExtention(it) } ?: "")
+    fun fetchLogFiles(
+        eventType: EventType,
+        logDate: LocalDate? = null,
+        verbose: Boolean = false,
+    ): List<LogFileData> {
+        val soqlQuery =
+            "SELECT Id, EventType, LogFile, LogDate FROM EventLogFile WHERE EventType='${eventType.name}'" +
+                (logDate?.let { dateRestrictionExtention(it) } ?: "")
         val encodedQuery = URLEncoder.encode(soqlQuery, "UTF-8")
 
         var done = false
@@ -169,9 +192,10 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
         val result: MutableList<LogFileData> = mutableListOf()
 
         while (!done) {
-            val request = Request(Method.GET, accessTokenHandler.instanceUrl + nextRecordsUrl)
-                .header("Authorization", "Bearer ${accessTokenHandler.accessToken}")
-                .header("Accept", "application/json")
+            val request =
+                Request(Method.GET, accessTokenHandler.instanceUrl + nextRecordsUrl)
+                    .header("Authorization", "Bearer ${accessTokenHandler.accessToken}")
+                    .header("Accept", "application/json")
             val response = clientStreamingMode(request)
             if (response.status.successful) {
                 val obj = JsonParser.parseString(response.bodyString()).asJsonObject
@@ -180,16 +204,17 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                     recordEntries.map {
                         if (verbose) {
                             log.debug {
-                                "Fetched logfile for ${eventType.name} from date " + LocalDate.parse(
-                                    it.asJsonObject["LogDate"].asString.substring(0, 10)
-                                )
+                                "Fetched logfile for ${eventType.name} from date " +
+                                    LocalDate.parse(
+                                        it.asJsonObject["LogDate"].asString.substring(0, 10),
+                                    )
                             }
                         }
                         LogFileData(
                             file = it.asJsonObject["LogFile"].asString,
-                            date = LocalDate.parse(it.asJsonObject["LogDate"].asString.substring(0, 10))
+                            date = LocalDate.parse(it.asJsonObject["LogDate"].asString.substring(0, 10)),
                         )
-                    }
+                    },
                 )
                 val totalSize = obj["totalSize"].asInt
 
@@ -197,7 +222,9 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                 done = obj["done"].asBoolean
                 if (!done) nextRecordsUrl = obj["nextRecordsUrl"].asString
             } else {
-                log.error { "Failed to fetch EventLogFiles of type ${eventType.name} - response ${response.status.code}:${response.bodyString()}" }
+                log.error {
+                    "Failed to fetch EventLogFiles of type ${eventType.name} - response ${response.status.code}:${response.bodyString()}"
+                }
                 done = true
             }
         }
@@ -209,8 +236,7 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
         return result
     }
 
-    private fun dateRestrictionExtention(date: LocalDate) =
-        " AND LogDate >= ${date}T00:00:00Z AND LogDate < ${date.plusDays(1)}T00:00:00Z"
+    private fun dateRestrictionExtention(date: LocalDate) = " AND LogDate >= ${date}T00:00:00Z AND LogDate < ${date.plusDays(1)}T00:00:00Z"
 
     fun createdDateRestrictionExtension(date: LocalDate): String {
         val osloZone = ZoneId.of("Europe/Oslo")
@@ -236,7 +262,8 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
     // Used for health check of Application log
     fun fetchApplicationLogsForDateFromRest(logDate: LocalDate): Pair<Int, Int> {
         val soqlQuery =
-            "SELECT CreatedDate, Log_Level__c, Application_Domain__c, Source_Class__c, Source_Function__c, UUID__c FROM Application_Log__c WHERE Log_Level__c IN ('Critical', 'Error')" +
+            "SELECT CreatedDate, Log_Level__c, Application_Domain__c, Source_Class__c, Source_Function__c," +
+                " UUID__c FROM Application_Log__c WHERE Log_Level__c IN ('Critical', 'Error')" +
                 createdDateRestrictionExtension(logDate)
         val encodedQuery = URLEncoder.encode(soqlQuery, "UTF-8")
         var done = false
@@ -249,9 +276,10 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
         var errorCount = 0
 
         while (!done) {
-            val request = Request(Method.GET, accessTokenHandler.instanceUrl + nextRecordsUrl)
-                .header("Authorization", "Bearer ${accessTokenHandler.accessToken}")
-                .header("Accept", "application/json")
+            val request =
+                Request(Method.GET, accessTokenHandler.instanceUrl + nextRecordsUrl)
+                    .header("Authorization", "Bearer ${accessTokenHandler.accessToken}")
+                    .header("Accept", "application/json")
             val response = clientStreamingMode(request)
 
             File("/tmp/soqlQ").writeText(soqlQuery)
@@ -290,9 +318,10 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
 
         val nextRecordsUrl = "/services/data/$apiVersion/query?q=$encodedQuery"
 
-        val request = Request(Method.GET, accessTokenHandler.instanceUrl + nextRecordsUrl)
-            .header("Authorization", "Bearer ${accessTokenHandler.accessToken}")
-            .header("Accept", "application/json")
+        val request =
+            Request(Method.GET, accessTokenHandler.instanceUrl + nextRecordsUrl)
+                .header("Authorization", "Bearer ${accessTokenHandler.accessToken}")
+                .header("Accept", "application/json")
         val response = clientStreamingMode(request)
         File("/tmp/responseEventTypeQuery").writeText(response.toMessage())
         return response.bodyString()
@@ -300,25 +329,41 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
 
     fun countCsvRowsFromFile(file: File): Int {
         file.bufferedReader().use { reader ->
-            val parser = CSVParser(
-                reader,
-                CSVFormat.DEFAULT.builder()
-                    .setSkipHeaderRecord(true)
-                    .setHeader()
-                    .build()
-            )
+            val parser =
+                CSVParser(
+                    reader,
+                    CSVFormat.DEFAULT
+                        .builder()
+                        .setSkipHeaderRecord(true)
+                        .setHeader()
+                        .build(),
+                )
 
             return parser.count()
         }
     }
 
-    fun processCsvRows(file: File, count: Int, date: LocalDate, eventType: EventType, skipToRow: Int): LogSyncStatus {
+    fun processCsvRows(
+        file: File,
+        count: Int,
+        date: LocalDate,
+        eventType: EventType,
+        skipToRow: Int,
+    ): LogSyncStatus {
         try {
             TransferJob.goal = count
 
             val reader = file.bufferedReader()
 
-            val csvParser = CSVParser(reader, CSVFormat.DEFAULT.builder().setSkipHeaderRecord(true).setHeader().build())
+            val csvParser =
+                CSVParser(
+                    reader,
+                    CSVFormat.DEFAULT
+                        .builder()
+                        .setSkipHeaderRecord(true)
+                        .setHeader()
+                        .build(),
+                )
 
             // Process each row as it’s read
             var logCounter = 0
@@ -341,13 +386,14 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                     event.addProperty(key, if (value.isNullOrBlank()) null else value.trim('"'))
                 }
 
-                val logMessage = if (eventType.messageField.isNotBlank()) {
-                    event[eventType.messageField]?.asString ?: "N/A"
-                } else {
-                    // Locally - if no message field defined nor any metrics labels
-                    // we want to see full event object to examine model of new event type
-                    if (local && eventType.fieldsToUseAsMetricLabels.isEmpty()) event.toString() else "N/A"
-                }
+                val logMessage =
+                    if (eventType.messageField.isNotBlank()) {
+                        event[eventType.messageField]?.asString ?: "N/A"
+                    } else {
+                        // Locally - if no message field defined nor any metrics labels
+                        // we want to see full event object to examine model of new event type
+                        if (local && eventType.fieldsToUseAsMetricLabels.isEmpty()) event.toString() else "N/A"
+                    }
 
                 if (logCounter >= skipToRow) {
                     if (eventType.messageField.isNotEmpty() || (local && eventType.fieldsToUseAsMetricLabels.isEmpty())) {
@@ -356,14 +402,15 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                                 eventData = event,
                                 excludeSensitive = true,
                                 logCounter,
-                                count
+                                count,
                             )
-                        val fullContext = eventType.generateLoggingContext(
-                            eventData = event,
-                            excludeSensitive = false,
-                            logCounter,
-                            count
-                        )
+                        val fullContext =
+                            eventType.generateLoggingContext(
+                                eventData = event,
+                                excludeSensitive = false,
+                                logCounter,
+                                count,
+                            )
 
                         withLoggingContext(nonSensitiveContext) {
                             log.error(logMessage)
@@ -378,27 +425,31 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                         try {
                             Metrics.eventLogCounters[eventType]!!
                                 .labels(
-                                    *eventType.fieldsToUseAsMetricLabels.map {
-                                        val strValue = event.fieldAsString(it)
-                                        if (eventType.metricsFieldsToNormalizeURL.contains(it)) {
-                                            Metrics.normalizeUrl(strValue)
-                                        } else if (eventType.metricsFieldsToTimeBucket.contains(it)) {
-                                            try {
-                                                strValue.toLong().toTimeLabel()
-                                            } catch (e: Exception) {
-                                                "Not applicable"
-                                            }
-                                        } else if (eventType.metricsFieldsToSizeBucket.contains(it)) {
-                                            try {
-                                                strValue.toLong().toSizeLabel()
-                                            } catch (e: Exception) {
-                                                "Not applicable"
-                                            }
-                                        } else {
-                                            event.fieldAsString(it)
-                                        }
-                                    }.toTypedArray() + event.fieldAsString(eventType.fieldToUseAsMetricDateLabel)
-                                        .substring(0, 10)
+                                    *
+                                        eventType.fieldsToUseAsMetricLabels
+                                            .map {
+                                                val strValue = event.fieldAsString(it)
+                                                if (eventType.metricsFieldsToNormalizeURL.contains(it)) {
+                                                    Metrics.normalizeUrl(strValue)
+                                                } else if (eventType.metricsFieldsToTimeBucket.contains(it)) {
+                                                    try {
+                                                        strValue.toLong().toTimeLabel()
+                                                    } catch (e: Exception) {
+                                                        "Not applicable"
+                                                    }
+                                                } else if (eventType.metricsFieldsToSizeBucket.contains(it)) {
+                                                    try {
+                                                        strValue.toLong().toSizeLabel()
+                                                    } catch (e: Exception) {
+                                                        "Not applicable"
+                                                    }
+                                                } else {
+                                                    event.fieldAsString(it)
+                                                }
+                                            }.toTypedArray() +
+                                            event
+                                                .fieldAsString(eventType.fieldToUseAsMetricDateLabel)
+                                                .substring(0, 10),
                                 ).inc()
                         } catch (e: Exception) {
                             log.warn { "Failed to populate and increment a metric of eventType $eventType: ${e.message}" }
@@ -414,7 +465,10 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
                 if (eventType.messageField.isNotEmpty()) {
                     if (logCounter % 100 == 0) {
                         if (logCounter >= skipToRow) {
-                            log.info { "Processed $logCounter of $count events" + (if (skipToRow > 1) " of which skipped first $skipToRow in current run" else "") }
+                            log.info {
+                                "Processed $logCounter of $count events" +
+                                    (if (skipToRow > 1) " of which skipped first $skipToRow in current run" else "")
+                            }
                         } else {
                             log.info { "Skipped $logCounter of $count events" }
                         }
@@ -424,12 +478,17 @@ class SalesforceClient(private val accessTokenHandler: AccessTokenHandler = Defa
             }
             csvParser.close()
             reader.close()
-            log.info { "Finally processed $logCounter of $count events" + (if (skipToRow > 1) " of which skipped first $skipToRow in current run" else "") }
-            val successState = createSuccessStatus(
-                date,
-                eventType,
-                "Processed $count events of type ${eventType.name} for $date " + (if (skipToRow > 1) " (pickup from $skipToRow in current run)" else "")
-            )
+            log.info {
+                "Finally processed $logCounter of $count events" +
+                    (if (skipToRow > 1) " of which skipped first $skipToRow in current run" else "")
+            }
+            val successState =
+                createSuccessStatus(
+                    date,
+                    eventType,
+                    "Processed $count events of type ${eventType.name} for $date " +
+                        (if (skipToRow > 1) " (pickup from $skipToRow in current run)" else ""),
+                )
             if (!local) {
                 PostgresDatabase.upsertLogSyncStatus(successState)
                 PostgresDatabase.updateCache(successState)
