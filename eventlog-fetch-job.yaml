@@ -2,9 +2,9 @@ apiVersion: nais.io/v1
 kind: Naisjob
 metadata:
   name: eventlog-fetch-job
-  namespace: teamcrm
+  namespace: platforce
   labels:
-    team: teamcrm
+    team: platforce
 spec:
   schedule: "30 12 * * *"  # This will run the job every day at 12:30 PM UTC (1:30 PM CET, 2:30 PM CEST)
   image: "{{ image }}" # cgr.dev/chainguard/curl:latest
