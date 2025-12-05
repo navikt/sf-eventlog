@@ -70,6 +70,8 @@ class Application {
             "/internal/clearStatus" bind Method.GET to clearStatusHandler,
             "/internal/transferStatus" bind Method.GET to TransferJob.statusHandler,
             "/internal/limits" bind Method.GET to limitHandler,
+            "/internal/clearDb" bind Method.GET to clearDbHandler,
+            "/internal/initDb" bind Method.GET to initDbHandler,
         )
 
     fun start() {
@@ -249,5 +251,17 @@ class Application {
 
     private val metaDataHandler: HttpHandler = {
         Response(OK).body(getMetaData())
+    }
+
+    private val clearDbHandler: HttpHandler = {
+        PostgresDatabase.createProgressTable(true)
+        PostgresDatabase.createStatusTable(true)
+        Response(OK).body("Table recreated")
+    }
+
+    private val initDbHandler: HttpHandler = {
+        PostgresDatabase.createProgressTable(false)
+        PostgresDatabase.createStatusTable(false)
+        Response(OK).body("Table created")
     }
 }
