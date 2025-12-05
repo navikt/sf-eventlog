@@ -11,12 +11,13 @@ jobs:
     outputs:
       image: ${{ steps.docker-push.outputs.image }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - uses: nais/docker-build-push@v0
+      - name: Checkout v5.0.1
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+      - name: Nais Docker Build Push
+        uses: nais/docker-build-push@1fae4798c79f4af4c3cdbd3fe65e51f8f3ba2368
         id: docker-push
         with:
-          team: teamcrm
+          team: platforce
           dockerfile: Dockerfile-job
   deploy-dev:
     name: Deploy job to dev-gcp
@@ -26,8 +27,10 @@ jobs:
       id-token: write
       contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: nais/deploy/actions/deploy@v2
+      - name: Checkout v5.0.1
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+      - name: Nais Deploy v2
+        uses: nais/deploy/actions/deploy@21af204a4d63d1c10d149916d96669d5c2fa6f76 # v2
         env:
           CLUSTER: dev-gcp
           RESOURCE: eventlog-fetch-job.yaml
@@ -40,8 +43,10 @@ jobs:
       id-token: write
       contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: nais/deploy/actions/deploy@v2
+      - name: Checkout v5.0.1
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+      - name: Nais Deploy v2
+        uses: nais/deploy/actions/deploy@21af204a4d63d1c10d149916d96669d5c2fa6f76 # v2
         env:
           CLUSTER: prod-gcp
           RESOURCE: eventlog-fetch-job.yaml
