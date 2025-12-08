@@ -38,7 +38,7 @@ spec:
         databases:
           - name: sf-eventlog-dev
   ingresses:
-    - "https://sf-eventlog-tmp.intern.dev.nav.no"
+    - "https://sf-eventlog.intern.dev.nav.no"
 #  azure:
 #    application:
 #      enabled: true
