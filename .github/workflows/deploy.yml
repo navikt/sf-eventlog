@@ -55,7 +55,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: ./gradlew clean build shadowJar -x test
       - name: Nais Docker Build Push
-        uses: nais/docker-build-push@1fae4798c79f4af4c3cdbd3fe65e51f8f3ba2368
+        uses: nais/docker-build-push@ae613eff6f44f0323476eda1c3994a7c518761c3
         id: docker-push
         with:
           team: platforce
