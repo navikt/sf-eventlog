@@ -8,6 +8,12 @@ import no.nav.sf.eventlog.config_SF_TOKENHOST
 import no.nav.sf.eventlog.env
 import no.nav.sf.eventlog.secret_KEYSTORE_JKS_B64
 import no.nav.sf.eventlog.secret_KEYSTORE_PASSWORD
+import no.nav.sf.eventlog.secret_OLD_KEYSTORE_JKS_B64
+import no.nav.sf.eventlog.secret_OLD_KEYSTORE_PASSWORD
+import no.nav.sf.eventlog.secret_OLD_PRIVATE_KEY_ALIAS
+import no.nav.sf.eventlog.secret_OLD_PRIVATE_KEY_PASSWORD
+import no.nav.sf.eventlog.secret_OLD_SF_CLIENT_ID
+import no.nav.sf.eventlog.secret_OLD_SF_USERNAME
 import no.nav.sf.eventlog.secret_PRIVATE_KEY_ALIAS
 import no.nav.sf.eventlog.secret_PRIVATE_KEY_PASSWORD
 import no.nav.sf.eventlog.secret_SF_CLIENT_ID
@@ -27,7 +33,7 @@ import java.security.PrivateKey
  *
  * Fetches and caches access token, also retrieves instance url
  */
-class DefaultAccessTokenHandler : AccessTokenHandler {
+class OldDefaultAccessTokenHandler : AccessTokenHandler {
     override val accessToken get() = fetchAccessTokenAndInstanceUrl().first
     override val instanceUrl get() = fetchAccessTokenAndInstanceUrl().second
     override val tenantId get() = fetchAccessTokenAndInstanceUrl().third
@@ -35,12 +41,12 @@ class DefaultAccessTokenHandler : AccessTokenHandler {
     private val log = KotlinLogging.logger { }
 
     private val sfTokenHost = env(config_SF_TOKENHOST)
-    private val sfClientID = env(secret_SF_CLIENT_ID)
-    private val sfUsername = env(secret_SF_USERNAME)
-    private val keystoreB64 = env(secret_KEYSTORE_JKS_B64)
-    private val keystorePassword = env(secret_KEYSTORE_PASSWORD)
-    private val privateKeyAlias = env(secret_PRIVATE_KEY_ALIAS)
-    private val privateKeyPassword = env(secret_PRIVATE_KEY_PASSWORD)
+    private val sfClientID = env(secret_OLD_SF_CLIENT_ID)
+    private val sfUsername = env(secret_OLD_SF_USERNAME)
+    private val keystoreB64 = env(secret_OLD_KEYSTORE_JKS_B64)
+    private val keystorePassword = env(secret_OLD_KEYSTORE_PASSWORD)
+    private val privateKeyAlias = env(secret_OLD_PRIVATE_KEY_ALIAS)
+    private val privateKeyPassword = env(secret_OLD_PRIVATE_KEY_PASSWORD)
 
     private val client: HttpHandler = OkHttp()
 
