@@ -9,7 +9,7 @@ import no.nav.sf.eventlog.EventType
 import no.nav.sf.eventlog.Metrics
 import no.nav.sf.eventlog.Metrics.toSizeLabel
 import no.nav.sf.eventlog.Metrics.toTimeLabel
-import no.nav.sf.eventlog.SECURE
+import no.nav.sf.eventlog.TEAM_LOGS
 import no.nav.sf.eventlog.TransferJob
 import no.nav.sf.eventlog.config_SALESFORCE_API_VERSION
 import no.nav.sf.eventlog.db.LogSyncStatus
@@ -404,6 +404,7 @@ class SalesforceClient(
                                 logCounter,
                                 count,
                             )
+
                         val fullContext =
                             eventType.generateLoggingContext(
                                 eventData = event,
@@ -417,7 +418,7 @@ class SalesforceClient(
                         }
 
                         withLoggingContext(fullContext) {
-                            log.error(SECURE, logMessage)
+                            log.error(TEAM_LOGS, logMessage)
                         }
                     }
 

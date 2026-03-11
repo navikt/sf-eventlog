@@ -20,7 +20,7 @@ import java.time.format.DateTimeFormatter
 
 val log = KotlinLogging.logger { }
 
-val SECURE: Marker = MarkerFactory.getMarker("SECURE_LOG")
+val TEAM_LOGS = MarkerFactory.getMarker("TEAM_LOGS")
 
 // Custom serializer/deserializer for LocalDate
 class LocalDateAdapter :
