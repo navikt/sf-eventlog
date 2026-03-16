@@ -16,9 +16,9 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Checkout v5.0.1
+      - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - name: Setup java v5.0.0
+      - name: Setup java
         uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
         with:
           java-version: 21
@@ -38,14 +38,14 @@ jobs:
     outputs:
       image: ${{ steps.docker-push.outputs.image }}
     steps:
-      - name: Checkout v5.0.1
+      - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - name: Setup java v5.0.0
+      - name: Setup java
         uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
         with:
           java-version: 21
           distribution: 'temurin'
-      - name: Setup Gradle v5.0.0
+      - name: Setup Gradle
         uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5.0.2
         with:
           cache-disabled: true
@@ -67,9 +67,9 @@ jobs:
       id-token: write
       contents: write
     steps:
-      - name: Checkout v5.0.1
+      - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - name: Nais Deploy v2
+      - name: Nais Deploy
         uses: nais/deploy/actions/deploy@fa754451577294aae42872a69b888b3470478ec1 # v2
         env:
           CLUSTER: dev-gcp
@@ -84,9 +84,9 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - name: Checkout v5.0.1
+      - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - name: Nais Deploy v2
+      - name: Nais Deploy
         uses: nais/deploy/actions/deploy@fa754451577294aae42872a69b888b3470478ec1 # v2
         env:
           CLUSTER: prod-gcp
