@@ -11,7 +11,7 @@ jobs:
     outputs:
       image: ${{ steps.docker-push.outputs.image }}
     steps:
-      - name: Checkout v5.0.1
+      - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Nais Docker Build Push
         uses: nais/docker-build-push@078e460885ed0424b60d45ce9220b4be1748be9d # v0
@@ -27,9 +27,9 @@ jobs:
       id-token: write
       contents: write
     steps:
-      - name: Checkout v5.0.1
+      - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - name: Nais Deploy v2
+      - name: Nais Deploy
         uses: nais/deploy/actions/deploy@fa754451577294aae42872a69b888b3470478ec1 # v2
         env:
           CLUSTER: dev-gcp
@@ -43,9 +43,9 @@ jobs:
       id-token: write
       contents: write
     steps:
-      - name: Checkout v5.0.1
+      - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - name: Nais Deploy v2
+      - name: Nais Deploy
         uses: nais/deploy/actions/deploy@fa754451577294aae42872a69b888b3470478ec1 # v2
         env:
           CLUSTER: prod-gcp
