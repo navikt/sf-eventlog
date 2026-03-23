@@ -58,6 +58,9 @@ spec:
       rules:
         - application: eventlog-fetch-job
     outbound:
+      rules:
+        - application: logging
+          namespace: nais-system
       external:
         - host: login.salesforce.com
         - host: navdialog.my.salesforce.com
