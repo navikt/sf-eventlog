@@ -61,22 +61,22 @@ jobs:
         id: docker-push
         with:
           team: platforce
-  deploy-dev:
-    name: Deploy sf-eventlog to dev-gcp
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - name: Nais Deploy
-        uses: nais/deploy/actions/deploy@fa754451577294aae42872a69b888b3470478ec1 # v2
-        env:
-          CLUSTER: dev-gcp
-          RESOURCE: .nais/dev.yaml
-          VAR: image=${{ needs.build.outputs.image }}
+#  deploy-dev:
+#    name: Deploy sf-eventlog to dev-gcp
+#    needs: build
+#    runs-on: ubuntu-latest
+#    permissions:
+#      id-token: write
+#      contents: write
+#    steps:
+#      - name: Checkout
+#        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+#      - name: Nais Deploy
+#        uses: nais/deploy/actions/deploy@fa754451577294aae42872a69b888b3470478ec1 # v2
+#        env:
+#          CLUSTER: dev-gcp
+#          RESOURCE: .nais/dev.yaml
+#          VAR: image=${{ needs.build.outputs.image }}
   deploy-prod:
     name: Deploy sf-eventlog to prod-gcp
     needs: build

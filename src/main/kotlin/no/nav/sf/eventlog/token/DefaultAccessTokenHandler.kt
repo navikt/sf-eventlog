@@ -1,19 +1,30 @@
 package no.nav.sf.eventlog.token
 
 import com.google.gson.Gson
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
 import mu.KotlinLogging
 import no.nav.sf.eventlog.config_SF_JWT_USERNAME
+import no.nav.sf.eventlog.config_SF_TOKENHOST
 import no.nav.sf.eventlog.config_SF_TOKEN_HOST
 import no.nav.sf.eventlog.env
+import no.nav.sf.eventlog.secret_KEYSTORE_JKS_B64
+import no.nav.sf.eventlog.secret_KEYSTORE_PASSWORD
+import no.nav.sf.eventlog.secret_PRIVATE_KEY_ALIAS
+import no.nav.sf.eventlog.secret_PRIVATE_KEY_PASSWORD
+import no.nav.sf.eventlog.secret_SF_CLIENT_ID
 import no.nav.sf.eventlog.secret_SF_JWT_CLIENT_ID
 import no.nav.sf.eventlog.secret_SF_JWT_KEYSTORE_B64
 import no.nav.sf.eventlog.secret_SF_JWT_KEYSTORE_PASSWORD
+import no.nav.sf.eventlog.secret_SF_USERNAME
 import org.http4k.client.OkHttp
 import org.http4k.core.HttpHandler
 import org.http4k.core.Method
 import org.http4k.core.Request
+import org.http4k.core.Response
 import org.http4k.core.Status
 import org.http4k.core.body.toBody
+import java.io.File
 import java.security.KeyStore
 import java.security.PrivateKey
 import java.security.Signature
@@ -24,135 +35,151 @@ import java.util.Base64
  * @see [sf.remoteaccess_oauth_jwt_flow](https://help.salesforce.com/s/articleView?id=sf.remoteaccess_oauth_jwt_flow.htm&type=5)
  *
  * Fetches and caches access token, also retrieves instance url
- *
- * Key alias set to "jwt". Assumption for certificates created through keytool, see https://github.com/navikt/sf-keytool
  */
-class DefaultAccessTokenHandler(
-    private val sfTokenHost: String = env(config_SF_TOKEN_HOST),
-    private val sfUsername: String = env(config_SF_JWT_USERNAME),
-    private val sfClientId: String = env(secret_SF_JWT_CLIENT_ID),
-    private val keystoreJksB64: String = env(secret_SF_JWT_KEYSTORE_B64),
-    private val keystorePassword: String = env(secret_SF_JWT_KEYSTORE_PASSWORD),
-    private val alias: String = "jwt",
-) : AccessTokenHandler {
-    override val accessToken get() = fetch().first
-    override val instanceUrl get() = fetch().second
-    override val tenantId get() = fetch().third
 
-    private val log = KotlinLogging.logger {}
+class DefaultAccessTokenHandler(
+    override val tenantId: String = "N/A",
+) : AccessTokenHandler {
+    override val accessToken get() = fetchAccessTokenAndInstanceUrl().first
+    override val instanceUrl get() = fetchAccessTokenAndInstanceUrl().second
+
+    fun refreshToken() {
+        if ((expireTime - System.currentTimeMillis()) / 60000 < 30) { // Refresh if expireTime within 30 min
+            log.info { "Refreshing access token" }
+            accessToken
+        }
+    }
+
+    private val log = KotlinLogging.logger { }
+
+    private val sfTokenHost = env(config_SF_TOKENHOST)
+    private val sfClientID = env(secret_SF_CLIENT_ID)
+    private val sfUsername = env(secret_SF_USERNAME)
+    private val keystoreB64 = env(secret_KEYSTORE_JKS_B64)
+    private val keystorePassword = env(secret_KEYSTORE_PASSWORD)
+    private val privateKeyAlias = env(secret_PRIVATE_KEY_ALIAS)
+    private val privateKeyPassword = env(secret_PRIVATE_KEY_PASSWORD)
+
     private val client: HttpHandler = OkHttp()
+
     private val gson = Gson()
 
-    private val expTimeSecondsClaim = 3600
-    private var cached: Triple<String, String, String>? = null
-    private var expireAtMillis = 0L
+    private val expTimeSecondsClaim = 3600 // 60 min - expire time for the access token we ask salesforce for
 
-    private fun fetch(): Triple<String, String, String> {
-        val now = System.currentTimeMillis()
-        if (cached != null && now < expireAtMillis) {
-            log.debug { "Using cached Salesforce access token" }
-            return cached!!
+    private var lastTokenPair = Pair("", "")
+
+    private var expireTime = System.currentTimeMillis()
+
+    private fun fetchAccessTokenAndInstanceUrl(): Pair<String, String> {
+        if (System.currentTimeMillis() < expireTime) {
+            log.debug { "Using cached access token (${(expireTime - System.currentTimeMillis()) / 60000} min left)" }
+            return lastTokenPair
         }
+        val expireMomentSinceEpochInSeconds = (System.currentTimeMillis() / 1000) + expTimeSecondsClaim
+        val claim =
+            JWTClaim(
+                iss = sfClientID,
+                aud = sfTokenHost,
+                sub = sfUsername,
+                exp = expireMomentSinceEpochInSeconds.toString(),
+            )
+        val privateKey =
+            privateKeyFromBase64Store(
+                ksB64 = keystoreB64,
+                ksPwd = keystorePassword,
+                pkAlias = privateKeyAlias,
+                pkPwd = privateKeyPassword,
+            )
 
-        val jwt = buildJwtAssertion()
-        val request =
-            Request(Method.POST, sfTokenHost)
+        val claimWithHeaderJsonUrlSafe =
+            gson.toJson(JWTClaimHeader("RS256")).encodeB64() +
+                "." + gson.toJson(claim).encodeB64()
+        val fullClaimSignature = privateKey.sign(claimWithHeaderJsonUrlSafe.toByteArray())
+
+        val accessTokenRequest =
+            Request(Method.POST, "$sfTokenHost/services/oauth2/token")
                 .header("Content-Type", "application/x-www-form-urlencoded")
                 .body(
                     listOf(
                         "grant_type" to "urn:ietf:params:oauth:grant-type:jwt-bearer",
-                        "assertion" to jwt,
+                        "assertion" to "$claimWithHeaderJsonUrlSafe.$fullClaimSignature",
                     ).toBody(),
                 )
 
-        val response = client(request)
-        if (response.status != Status.OK) {
-            throw IllegalStateException(
-                "Salesforce token request failed: ${response.status}\n${response.bodyString()}",
-            )
+        for (retry in 1..4) {
+            val response: Response = client(accessTokenRequest)
+            try {
+                if (response.status.code == 200) {
+                    val accessTokenResponse = gson.fromJson(response.bodyString(), AccessTokenResponse::class.java)
+                    lastTokenPair = Pair(accessTokenResponse.access_token, accessTokenResponse.instance_url)
+                    expireTime = (expireMomentSinceEpochInSeconds - 10) * 1000
+                    return lastTokenPair
+                }
+            } catch (e: Exception) {
+                File(
+                    "/tmp/accessTokenFailStack",
+                ).writeText(accessTokenRequest.toMessage() + "\n\n" + response.toMessage() + "\n\n" + e.stackTraceToString())
+                log.error("Attempt to fetch access token $retry of 3 failed by ${e.message}")
+                runBlocking { delay(retry * 1000L) }
+            }
+        }
+        log.error("Attempt to fetch access token given up")
+        return Pair("", "")
+    }
+
+    private fun privateKeyFromBase64Store(
+        ksB64: String,
+        ksPwd: String,
+        pkAlias: String,
+        pkPwd: String,
+    ): PrivateKey =
+        KeyStore.getInstance("JKS").apply { load(ksB64.decodeB64().inputStream(), ksPwd.toCharArray()) }.run {
+            getKey(pkAlias, pkPwd.toCharArray()) as PrivateKey
         }
 
-        val parsed =
-            gson.fromJson(response.bodyString(), AccessTokenResponse::class.java)
-
-        val triplet =
-            Triple(
-                parsed.access_token,
-                parsed.instance_url,
-                parsed.id.split("/")[4],
-            )
-
-        cached = triplet
-        expireAtMillis = now + 10 * 60 * 1000 // cache 10 minutes
-
-        return triplet
-    }
-
-    private fun buildJwtAssertion(): String {
-        val exp =
-            (System.currentTimeMillis() / 1000) + expTimeSecondsClaim
-
-        val claim =
-            JWTClaim(
-                iss = sfClientId,
-                aud = sfTokenHost,
-                sub = sfUsername,
-                exp = exp,
-            )
-
-        val headerJson = gson.toJson(JWTHeader("RS256"))
-        val claimJson = gson.toJson(claim)
-
-        val unsigned =
-            "${headerJson.encodeB64UrlSafe()}.${claimJson.encodeB64UrlSafe()}"
-
-        val privateKey = loadPrivateKey()
-        val signature = privateKey.sign(unsigned.toByteArray())
-
-        return "$unsigned.$signature"
-    }
-
-    private fun loadPrivateKey(): PrivateKey =
-        KeyStore
-            .getInstance("JKS")
-            .apply {
-                load(
-                    keystoreJksB64.decodeB64().inputStream(),
-                    keystorePassword.toCharArray(),
-                )
-            }.getKey(alias, keystorePassword.toCharArray()) as PrivateKey
-
     private fun PrivateKey.sign(data: ByteArray): String =
-        Signature
-            .getInstance("SHA256withRSA")
-            .apply {
-                initSign(this@sign)
-                update(data)
-            }.sign()
-            .encodeB64UrlSafe()
+        this.let {
+            java.security.Signature
+                .getInstance("SHA256withRSA")
+                .apply {
+                    initSign(it)
+                    update(data)
+                }.run {
+                    sign().encodeB64()
+                }
+        }
 
-    private fun ByteArray.encodeB64UrlSafe(): String = Base64.getUrlEncoder().withoutPadding().encodeToString(this)
+    private fun ByteArray.encodeB64(): String =
+        String(
+            java.util.Base64
+                .getUrlEncoder()
+                .withoutPadding()
+                .encode(this),
+        )
 
-    private fun String.decodeB64(): ByteArray = Base64.getMimeDecoder().decode(this)
+    private fun String.decodeB64(): ByteArray =
+        java.util.Base64
+            .getMimeDecoder()
+            .decode(this)
 
-    private fun String.encodeB64UrlSafe(): String = toByteArray(Charsets.UTF_8).encodeB64UrlSafe()
+    private fun String.encodeB64(): String = this.toByteArray(Charsets.UTF_8).encodeB64()
 
     private data class JWTClaim(
         val iss: String,
         val aud: String,
         val sub: String,
-        val exp: Long,
+        val exp: String,
     )
 
-    private data class JWTHeader(
+    private data class JWTClaimHeader(
         val alg: String,
     )
 
     private data class AccessTokenResponse(
         val access_token: String,
+        val scope: String,
         val instance_url: String,
         val id: String,
         val token_type: String,
-        val scope: String,
     )
 }
