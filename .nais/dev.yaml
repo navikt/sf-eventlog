@@ -63,7 +63,7 @@ spec:
   envFrom:
     - configmap: salesforce-common
     - configmap: sf-pubsub
-    - secret: sf-pubsub-preprod
+    - secret: sf-pubsub-preprod-tmp
   env:
     - name: CONTEXT
       value: "DEV"
