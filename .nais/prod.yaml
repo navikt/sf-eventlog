@@ -64,9 +64,9 @@ spec:
         - host: login.salesforce.com
         - host: navdialog.my.salesforce.com
   envFrom:
+    - configmap: salesforce-common
+    - configmap: sf-eventlog
     - secret: sf-eventlog
   env:
-    - name: SALESFORCE_API_VERSION
-      value: "v58.0"
     - name: CONTEXT
       value: "PROD"

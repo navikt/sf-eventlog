@@ -61,9 +61,9 @@ spec:
         - host: navdialog--uat.my.salesforce.com
         - host: navdialog--sit2.my.salesforce.com
   envFrom:
+    - configmap: salesforce-common
+    - configmap: sf-pubsub
     - secret: sf-pubsub-preprod
   env:
-    - name: SALESFORCE_API_VERSION
-      value: "v59.0"
     - name: CONTEXT
       value: "DEV"
