@@ -4,31 +4,28 @@ import com.google.gson.Gson
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import mu.KotlinLogging
-import no.nav.sf.eventlog.config_SF_JWT_USERNAME
 import no.nav.sf.eventlog.config_SF_TOKENHOST
-import no.nav.sf.eventlog.config_SF_TOKEN_HOST
 import no.nav.sf.eventlog.env
 import no.nav.sf.eventlog.secret_KEYSTORE_JKS_B64
 import no.nav.sf.eventlog.secret_KEYSTORE_PASSWORD
+import no.nav.sf.eventlog.secret_OLD_KEYSTORE_JKS_B64
+import no.nav.sf.eventlog.secret_OLD_KEYSTORE_PASSWORD
+import no.nav.sf.eventlog.secret_OLD_PRIVATE_KEY_ALIAS
+import no.nav.sf.eventlog.secret_OLD_PRIVATE_KEY_PASSWORD
+import no.nav.sf.eventlog.secret_OLD_SF_CLIENT_ID
+import no.nav.sf.eventlog.secret_OLD_SF_USERNAME
 import no.nav.sf.eventlog.secret_PRIVATE_KEY_ALIAS
 import no.nav.sf.eventlog.secret_PRIVATE_KEY_PASSWORD
 import no.nav.sf.eventlog.secret_SF_CLIENT_ID
-import no.nav.sf.eventlog.secret_SF_JWT_CLIENT_ID
-import no.nav.sf.eventlog.secret_SF_JWT_KEYSTORE_B64
-import no.nav.sf.eventlog.secret_SF_JWT_KEYSTORE_PASSWORD
 import no.nav.sf.eventlog.secret_SF_USERNAME
 import org.http4k.client.OkHttp
 import org.http4k.core.HttpHandler
 import org.http4k.core.Method
 import org.http4k.core.Request
 import org.http4k.core.Response
-import org.http4k.core.Status
 import org.http4k.core.body.toBody
-import java.io.File
 import java.security.KeyStore
 import java.security.PrivateKey
-import java.security.Signature
-import java.util.Base64
 
 /**
  * A handler for oauth2 access flow to salesforce.
@@ -36,29 +33,20 @@ import java.util.Base64
  *
  * Fetches and caches access token, also retrieves instance url
  */
-
-class DefaultAccessTokenHandler(
-    override val tenantId: String = "N/A",
-) : AccessTokenHandler {
+class OldDefaultAccessTokenHandler : AccessTokenHandler {
     override val accessToken get() = fetchAccessTokenAndInstanceUrl().first
     override val instanceUrl get() = fetchAccessTokenAndInstanceUrl().second
-
-    fun refreshToken() {
-        if ((expireTime - System.currentTimeMillis()) / 60000 < 30) { // Refresh if expireTime within 30 min
-            log.info { "Refreshing access token" }
-            accessToken
-        }
-    }
+    override val tenantId get() = fetchAccessTokenAndInstanceUrl().third
 
     private val log = KotlinLogging.logger { }
 
     private val sfTokenHost = env(config_SF_TOKENHOST)
-    private val sfClientID = env(secret_SF_CLIENT_ID)
-    private val sfUsername = env(secret_SF_USERNAME)
-    private val keystoreB64 = env(secret_KEYSTORE_JKS_B64)
-    private val keystorePassword = env(secret_KEYSTORE_PASSWORD)
-    private val privateKeyAlias = env(secret_PRIVATE_KEY_ALIAS)
-    private val privateKeyPassword = env(secret_PRIVATE_KEY_PASSWORD)
+    private val sfClientID = env(secret_OLD_SF_CLIENT_ID)
+    private val sfUsername = env(secret_OLD_SF_USERNAME)
+    private val keystoreB64 = env(secret_OLD_KEYSTORE_JKS_B64)
+    private val keystorePassword = env(secret_OLD_KEYSTORE_PASSWORD)
+    private val privateKeyAlias = env(secret_OLD_PRIVATE_KEY_ALIAS)
+    private val privateKeyPassword = env(secret_OLD_PRIVATE_KEY_PASSWORD)
 
     private val client: HttpHandler = OkHttp()
 
@@ -66,15 +54,16 @@ class DefaultAccessTokenHandler(
 
     private val expTimeSecondsClaim = 3600 // 60 min - expire time for the access token we ask salesforce for
 
-    private var lastTokenPair = Pair("", "")
+    private var lastTokenTriplet = Triple("", "", "")
 
     private var expireTime = System.currentTimeMillis()
 
-    private fun fetchAccessTokenAndInstanceUrl(): Pair<String, String> {
+    private fun fetchAccessTokenAndInstanceUrl(): Triple<String, String, String> {
         if (System.currentTimeMillis() < expireTime) {
             log.debug { "Using cached access token (${(expireTime - System.currentTimeMillis()) / 60000} min left)" }
-            return lastTokenPair
+            return lastTokenTriplet
         }
+
         val expireMomentSinceEpochInSeconds = (System.currentTimeMillis() / 1000) + expTimeSecondsClaim
         val claim =
             JWTClaim(
@@ -90,14 +79,13 @@ class DefaultAccessTokenHandler(
                 pkAlias = privateKeyAlias,
                 pkPwd = privateKeyPassword,
             )
-
-        val claimWithHeaderJsonUrlSafe =
-            gson.toJson(JWTClaimHeader("RS256")).encodeB64() +
-                "." + gson.toJson(claim).encodeB64()
+        val claimWithHeaderJsonUrlSafe = "${
+            gson.toJson(JWTClaimHeader("RS256")).encodeB64UrlSafe()
+        }.${gson.toJson(claim).encodeB64UrlSafe()}"
         val fullClaimSignature = privateKey.sign(claimWithHeaderJsonUrlSafe.toByteArray())
 
         val accessTokenRequest =
-            Request(Method.POST, "$sfTokenHost/services/oauth2/token")
+            Request(Method.POST, sfTokenHost)
                 .header("Content-Type", "application/x-www-form-urlencoded")
                 .body(
                     listOf(
@@ -107,24 +95,22 @@ class DefaultAccessTokenHandler(
                 )
 
         for (retry in 1..4) {
-            val response: Response = client(accessTokenRequest)
             try {
+                val response: Response = client(accessTokenRequest)
                 if (response.status.code == 200) {
                     val accessTokenResponse = gson.fromJson(response.bodyString(), AccessTokenResponse::class.java)
-                    lastTokenPair = Pair(accessTokenResponse.access_token, accessTokenResponse.instance_url)
-                    expireTime = (expireMomentSinceEpochInSeconds - 10) * 1000
-                    return lastTokenPair
+                    lastTokenTriplet =
+                        Triple(accessTokenResponse.access_token, accessTokenResponse.instance_url, accessTokenResponse.id.split("/")[4])
+                    expireTime = System.currentTimeMillis() + 600000
+                    return lastTokenTriplet
                 }
             } catch (e: Exception) {
-                File(
-                    "/tmp/accessTokenFailStack",
-                ).writeText(accessTokenRequest.toMessage() + "\n\n" + response.toMessage() + "\n\n" + e.stackTraceToString())
                 log.error("Attempt to fetch access token $retry of 3 failed by ${e.message}")
                 runBlocking { delay(retry * 1000L) }
             }
         }
         log.error("Attempt to fetch access token given up")
-        return Pair("", "")
+        return Triple("", "", "")
     }
 
     private fun privateKeyFromBase64Store(
@@ -162,7 +148,7 @@ class DefaultAccessTokenHandler(
             .getMimeDecoder()
             .decode(this)
 
-    private fun String.encodeB64(): String = this.toByteArray(Charsets.UTF_8).encodeB64()
+    private fun String.encodeB64UrlSafe(): String = this.toByteArray(Charsets.UTF_8).encodeB64()
 
     private data class JWTClaim(
         val iss: String,

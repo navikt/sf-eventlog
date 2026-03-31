@@ -22,7 +22,7 @@ import no.nav.sf.eventlog.fieldAsString
 import no.nav.sf.eventlog.generateLoggingContext
 import no.nav.sf.eventlog.local
 import no.nav.sf.eventlog.token.AccessTokenHandler
-import no.nav.sf.eventlog.token.DefaultAccessTokenHandler
+import no.nav.sf.eventlog.token.OldDefaultAccessTokenHandler
 import okhttp3.OkHttpClient
 import org.apache.commons.csv.CSVFormat
 import org.apache.commons.csv.CSVParser
@@ -44,7 +44,7 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
 class SalesforceClient(
-    private val accessTokenHandler: AccessTokenHandler = DefaultAccessTokenHandler(),
+    private val accessTokenHandler: AccessTokenHandler = OldDefaultAccessTokenHandler(),
 ) {
     private val log = KotlinLogging.logger { }
 
