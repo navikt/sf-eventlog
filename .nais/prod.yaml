@@ -65,8 +65,7 @@ spec:
         - host: navdialog.my.salesforce.com
   envFrom:
     - configmap: salesforce-common
-    - configmap: sf-eventlog
-    - secret: sf-eventlog
+    - secret: sf-eventlog-prod
   env:
     - name: CONTEXT
       value: "PROD"
