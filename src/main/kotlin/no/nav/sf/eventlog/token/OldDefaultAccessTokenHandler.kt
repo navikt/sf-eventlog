@@ -4,10 +4,8 @@ import com.google.gson.Gson
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import mu.KotlinLogging
-import no.nav.sf.eventlog.config_SF_TOKENHOST
+import no.nav.sf.eventlog.config_SF_TOKEN_HOST
 import no.nav.sf.eventlog.env
-import no.nav.sf.eventlog.secret_KEYSTORE_JKS_B64
-import no.nav.sf.eventlog.secret_KEYSTORE_PASSWORD
 import no.nav.sf.eventlog.secret_OLD_KEYSTORE_JKS_B64
 import no.nav.sf.eventlog.secret_OLD_KEYSTORE_PASSWORD
 import no.nav.sf.eventlog.secret_OLD_PRIVATE_KEY_ALIAS
@@ -40,7 +38,7 @@ class OldDefaultAccessTokenHandler : AccessTokenHandler {
 
     private val log = KotlinLogging.logger { }
 
-    private val sfTokenHost = env(config_SF_TOKENHOST)
+    private val sfTokenHost = env(config_SF_TOKEN_HOST)
     private val sfClientID = env(secret_OLD_SF_CLIENT_ID)
     private val sfUsername = env(secret_OLD_SF_USERNAME)
     private val keystoreB64 = env(secret_OLD_KEYSTORE_JKS_B64)

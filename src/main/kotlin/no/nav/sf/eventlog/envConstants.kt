@@ -6,8 +6,6 @@ import java.io.File
 import java.io.FileInputStream
 import java.util.Properties
 
-const val config_SF_TOKENHOST = "SF_TOKENHOST"
-
 const val secret_SF_CLIENT_ID = "SF_CLIENT_ID"
 const val secret_SF_USERNAME = "SF_USERNAME"
 const val secret_KEYSTORE_JKS_B64 = "KEYSTORE_JKS_B64"
