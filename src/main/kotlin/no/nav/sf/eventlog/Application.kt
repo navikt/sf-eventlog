@@ -15,6 +15,7 @@ import no.nav.sf.eventlog.db.createProcessingStatus
 import no.nav.sf.eventlog.db.createUnprocessedStatus
 import no.nav.sf.eventlog.db.getMetaData
 import no.nav.sf.eventlog.salesforce.SalesforceClient
+import no.nav.sf.eventlog.token.NewAccessTokenHandler
 import org.http4k.core.HttpHandler
 import org.http4k.core.Method
 import org.http4k.core.Response
@@ -30,6 +31,8 @@ import org.http4k.server.asServer
 import java.io.File
 import java.lang.IllegalStateException
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 class Application {
     private val log = KotlinLogging.logger { }
@@ -72,6 +75,9 @@ class Application {
             "/internal/limits" bind Method.GET to limitHandler,
             "/internal/clearDb" bind Method.GET to clearDbHandler,
             "/internal/initDb" bind Method.GET to initDbHandler,
+            "/internal/user" bind Method.GET to { Response(OK).body(env(secret_SF_JWT_USERNAME)) },
+            "/internal/version" bind Method.GET to { Response(OK).body(env(config_SALESFORCE_API_VERSION)) },
+            "/internal/testAccess/new" bind Method.GET to testAccessHandlerNew,
         )
 
     fun start() {
@@ -264,4 +270,11 @@ class Application {
         PostgresDatabase.createStatusTable(false)
         Response(OK).body("Table created")
     }
+
+    private val testAccessHandlerNew: HttpHandler = {
+        val newAccessTokenHandler = NewAccessTokenHandler()
+        Response(OK).body("$currentTimeStamp\nTest access (new) successful: " + newAccessTokenHandler.testAccess())
+    }
+
+    val currentTimeStamp: String get() = LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME)
 }
