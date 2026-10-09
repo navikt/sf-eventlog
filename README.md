@@ -1,4 +1,4 @@
-# sf-eventlog
+# sf-eventlog [<img align="right" src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" width="18" alt="GitHub repository" />](https://github.com/navikt/sf-eventlog)
 App for å daglig laste ned valgte entiteter fra Salesforce EventLog og logge i vanlige eller sikre logger.
 
 I EventType.kt finner du definisjonen av hvilke eventtyper som hentes ned, og hvilke felter som logges. Felter listet under sensitiveFields logges kun i sikre logger.
