@@ -1,0 +1,4 @@
+x_TIMESTAMP_DERIVED,x_UUID__c,x_Source_Class__c,x_Source_Function__c,x_Application_Domain__c,x_Log_Level__c
+"Mar 17, 2025 @ 12:00:00.000",fixture-exact,FixtureLogger,log,eventlog,INFO
+"Mar 17, 2025 @ 12:02:00.000",fixture-later,-,log,eventlog,WARN
+"Mar 17, 2025 @ 11:58:00.000",fixture-earlier,FixtureLogger,log,-,INFO
