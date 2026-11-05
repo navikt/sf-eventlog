@@ -3,11 +3,15 @@ package no.nav.sf.eventlog
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonParser
 import com.opencsv.CSVReader
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Test
 import java.io.StringReader
 import java.lang.Math.abs
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 /**
  * CompareAppLogsUtilityTest
@@ -21,15 +25,15 @@ import java.time.format.DateTimeFormatter
  * https://logs.adeo.no/app/discover#/?_g=(filters:!(),refreshInterval:(pause:!t,value:60000),time:(from:'2025-03-16T23:00:00.000Z',to:'2025-03-17T23:00:00.000Z'))&_a=(columns:!(message,envclass,x_Log_Level__c,x_TIMESTAMP_DERIVED,x_Application_Domain__c,x_Source_Class__c,x_Source_Function__c,x_UUID__c),dataSource:(dataViewId:'tjenestekall-*',type:dataView),filters:!(),hideChart:!f,interval:auto,query:(language:kuery,query:'application:%20sf-pubsub-application-event%20AND%20envclass:%20p'),sort:!(!('@timestamp',desc)))
  * and adjust date
  *
- * Uncomment @Test below and run, disable after use
+ * Runs with synthetic fixtures by default. For a manual healthcheck, change the resource paths below
+ * to your local exports, using file names ignored via .gitignore.
  */
 class CompareAppLogsUtilityTest {
-    // Use file names ignored via .gitignore
-    val csvFromAdeo = "/Scratch_logadeo17mars.csv"
-    val jsonArrayFromSOQL = "/Scratch_records17mars.json"
+    val csvFromAdeo = "/comparison/adeo-logs.csv"
+    val jsonArrayFromSOQL = "/comparison/soql-records.json"
 
-    // @Test
-    fun addTestCases() {
+    @Test
+    fun compareAppLogs() {
         val gson =
             GsonBuilder()
                 .registerTypeAdapter(LocalDateTime::class.java, LocalDateTimeFromSFStampDeserializer())
@@ -48,6 +52,9 @@ class CompareAppLogsUtilityTest {
                     secondJsonArray,
                     Array<AppRecordPartialLocalDate>::class.java,
                 ).toList()
+
+        assertFalse(logAdeoListFromCSV.isEmpty(), "The CSV must contain log records")
+        assertFalse(recordsList.isEmpty(), "The SOQL response must contain log records")
 
         // Match function
         fun recordsMatch(
@@ -131,6 +138,9 @@ class CompareAppLogsUtilityTest {
                 "Application_Domain__c: $domain, Source_Class__c: $sourceClass, Source_Function__c: $sourceFunction - Count: ${list.size}",
             )
         }
+
+        assertEquals(0, mismatchesList.size, "Every Adeo log must have a matching SOQL record")
+        assertEquals(0, mismatchesList2.size, "Every SOQL record must have a matching Adeo log")
     }
 }
 
@@ -141,7 +151,7 @@ fun parseCsvLogs(csvContent: String): List<AppRecordPartialLocalDate> {
     val header = lines[0] // First row is the header
     val columnIndexMap = header.withIndex().associate { it.value to it.index } // Map column names to indices
 
-    val formatter = DateTimeFormatter.ofPattern("MMM d, yyyy @ HH:mm:ss.SSS") // Adjust if necessary
+    val formatter = DateTimeFormatter.ofPattern("MMM d, yyyy @ HH:mm:ss.SSS", Locale.ENGLISH)
     val records = mutableListOf<AppRecordPartialLocalDate>()
 
     // Skip the header row

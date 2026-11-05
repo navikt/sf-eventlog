@@ -1,0 +1,26 @@
+[
+  {
+    "CreatedDate": "2025-03-17T11:00:00.000+0000",
+    "Log_Level__c": "INFO",
+    "Application_Domain__c": "eventlog",
+    "Source_Class__c": "FixtureLogger",
+    "Source_Function__c": "log",
+    "UUID__c": "fixture-exact"
+  },
+  {
+    "CreatedDate": "2025-03-17T11:00:00.000+0000",
+    "Log_Level__c": "WARN",
+    "Application_Domain__c": "eventlog",
+    "Source_Class__c": "",
+    "Source_Function__c": "log",
+    "UUID__c": "fixture-later"
+  },
+  {
+    "CreatedDate": "2025-03-17T11:00:00.000+0000",
+    "Log_Level__c": "INFO",
+    "Application_Domain__c": "",
+    "Source_Class__c": "FixtureLogger",
+    "Source_Function__c": "log",
+    "UUID__c": "fixture-earlier"
+  }
+]
